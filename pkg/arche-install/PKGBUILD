@@ -1,0 +1,21 @@
+# Maintainer: Amirhossein Ghanipour <amirhosseinghanipour@arche-linux.org>
+pkgname=arche-install
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="The official installer for Arche Linux"
+arch=('any')
+url="https://arche-linux.org"
+license=('GPL3')
+depends=(
+    'bash'
+    'util-linux'
+    'coreutils'
+    'parted'
+    'e2fsprogs'
+    'dosfstools'
+)
+
+package() {
+    cd "$srcdir"
+    install -Dm755 arche-install "$pkgdir/usr/bin/arche-install"
+}

@@ -1,0 +1,392 @@
+#!/usr/bin/env bash
+################################################################################
+# arche-install - Official Installer for Arche Linux
+# AUTHOR: d3v1ll3n@gmail.com
+################################################################################
+
+VERSION='0.1'
+ARCHE_PATH='/usr/share/arche-install'
+
+TRUE=0
+FALSE=1
+SUCCESS=0
+FAILURE=1
+VERBOSE='/dev/null'
+
+WHITE="$(tput setaf 7)"
+CYAN="$(tput setaf 6)"
+CYANB="$(
+  tput bold
+  tput setaf 6
+)"
+RED="$(tput setaf 1)"
+YELLOW="$(tput setaf 3)"
+NC="$(tput sgr0)"
+
+CHROOT='/mnt'
+
+# Exit on CTRL + c
+trap "echo -e '\n${RED}Aborted by user${NC}'; exit $FAILURE" 2
+
+# Print formatted output
+wprintf() { printf "%s$1%s" "$WHITE" "$NC" "${@:2}"; }
+warn() { printf "%s[!] WARNING: %s%s\n" "$YELLOW" "$1" "$NC"; }
+err() {
+  printf "%s[-] ERROR: %s%s\n" "$RED" "$1" "$NC"
+  return $FAILURE
+}
+title() {
+  clear
+  printf "${CYANB}== Arche Installer v$VERSION ==${NC}\n\n"
+}
+
+# Check root
+check_uid() {
+  [ "$(id -u)" != '0' ] && err 'You must be root to run the Arche installer!' && exit $FAILURE
+}
+
+# Verify ISO integrity
+verify_iso() {
+  title
+  wprintf "ISO integrity verification is a crucial step to ensure your installation medium is authentic and has not been tampered with.\n\n"
+  wprintf "To proceed, you will need:\n"
+  wprintf "  1. The Arche Linux public GPG key (already imported into your GPG keyring).\n"
+  wprintf "  2. The 'sha256sums.txt' file.\n"
+  wprintf "  3. The 'sha256sums.txt.sig' signature file.\n\n"
+
+  read -r -p "Do you want to perform this verification now? (y/N): " choice
+  case "$choice" in
+  y | Y)
+    wprintf "\nPlease enter the path to the checksums file (sha256sums.txt): "
+    read -r checksum_file
+    wprintf "Please enter the path to the signature file (sha256sums.txt.sig): "
+    read -r sig_file
+
+    if [ ! -f "$checksum_file" ] || [ ! -f "$sig_file" ]; then
+      err "One or both of the specified files could not be found."
+      exit $FAILURE
+    fi
+
+    wprintf "\nVerifying checksum signature...\n"
+    if gpg --verify "$sig_file" "$checksum_file"; then
+      wprintf "\n${CYANB}GPG verification successful! The checksums file is authentic.${NC}\n\n"
+      wprintf "Now, checking the ISO file against the trusted checksums...\n"
+      if sha256sum -c "$checksum_file" --ignore-missing; then
+        wprintf "\n${CYANB}ISO integrity confirmed! The ISO matches the checksum and is ready to install.${NC}\n"
+        sleep 4
+      else
+        err "ISO check FAILED! The ISO is corrupt or does not match the provided checksums."
+        exit $FAILURE
+      fi
+    else
+      err "GPG verification FAILED! The checksums file may be corrupt or tampered with. Do not proceed."
+      exit $FAILURE
+    fi
+    ;;
+  *)
+    warn "You have chosen to skip verification. Proceed with extreme caution."
+    sleep 3
+    ;;
+  esac
+}
+
+# Ask for hostname
+ask_hostname() {
+  while [ -z "$HOST_NAME" ]; do
+    title
+    wprintf '[?] Set your hostname: '
+    read -r HOST_NAME
+  done
+}
+
+# Ask for locale
+ask_locale() {
+  title
+  wprintf '[?] Set locale [en_US.UTF-8]: '
+  read -r LOCALE
+  [ -z "$LOCALE" ] && LOCALE='en_US.UTF-8'
+}
+
+# Ask for keymap (console) and X11 layouts
+ask_keymap() {
+  title
+  wprintf '[?] Set keymap for console (TTY) [us]: '
+  read -r KEYMAP
+  [ -z "$KEYMAP" ] && KEYMAP='us'
+
+  title
+  wprintf '[?] Set X11 keyboard layouts (comma-separated, e.g. us,ru) [us]: '
+  read -r XKB_LAYOUTS
+  [ -z "$XKB_LAYOUTS" ] && XKB_LAYOUTS='us'
+
+  if ! [[ "$XKB_LAYOUTS" =~ ^[a-z,]+$ ]]; then
+    warn "Invalid X11 layout list. Falling back to 'us'."
+    XKB_LAYOUTS='us'
+  fi
+
+  title
+  wprintf '[?] Choose X11 layout switch key:\n'
+  wprintf '  1) Alt+Shift (alt_shift_toggle)\n'
+  wprintf '  2) Ctrl+Shift (ctrl_shift_toggle)\n'
+  wprintf '  3) Caps Lock (caps_toggle)\n'
+  wprintf '  4) Shift+Caps Lock (shift_caps_toggle)\n'
+  wprintf '  5) Alt+Caps Lock (alt_caps_toggle)\n'
+  wprintf '  6) Left Win (lwin_toggle)\n'
+  wprintf '  7) Right Win (rwin_toggle)\n'
+  wprintf '  8) Menu key (menu_toggle)\n'
+  wprintf '  9) Ctrl+Alt (ctrl_alt_toggle)\n'
+  wprintf '  10) Win+Space (win_space_toggle)\n'
+  wprintf '[default: 1]: '
+
+  read -r choice
+  [ -z "$choice" ] && choice=1
+
+  case "$choice" in
+  1) XKB_OPTION='alt_shift_toggle' ;;
+  2) XKB_OPTION='ctrl_shift_toggle' ;;
+  3) XKB_OPTION='caps_toggle' ;;
+  4) XKB_OPTION='shift_caps_toggle' ;;
+  5) XKB_OPTION='alt_caps_toggle' ;;
+  6) XKB_OPTION='lwin_toggle' ;;
+  7) XKB_OPTION='rwin_toggle' ;;
+  8) XKB_OPTION='menu_toggle' ;;
+  9) XKB_OPTION='ctrl_alt_toggle' ;;
+  10) XKB_OPTION='win_space_toggle' ;;
+  *)
+    warn "Invalid selection. Defaulting to Alt+Shift."
+    XKB_OPTION='alt_shift_toggle'
+    ;;
+  esac
+}
+
+# Get available disks
+get_hd_devs() {
+  HD_DEVS="$(lsblk -d -n -o NAME | grep -v loop)"
+}
+
+# Ask for disk
+ask_hd_dev() {
+  while true; do
+    title
+    wprintf '[+] Available disks:\n'
+    for i in $HD_DEVS; do echo "    > $i"; done
+    wprintf '[?] Choose disk (e.g. sda): '
+    read -r HD_DEV
+    if echo "$HD_DEVS" | grep -wq "$HD_DEV"; then
+      HD_DEV="/dev/$HD_DEV"
+      break
+    fi
+  done
+}
+
+# Partitioning
+partition_disk() {
+  title
+  warn "Partition your disk with cfdisk. You need at least EFI (if UEFI), root, and optionally swap."
+  sleep 2
+  cfdisk "$HD_DEV"
+}
+
+# Get partitions
+get_partitions() {
+  PARTITIONS=$(lsblk -ln -o NAME "$HD_DEV" | grep -v "$(basename "$HD_DEV")" | awk '{print "/dev/"$1}')
+}
+
+# Ask for partitions
+ask_partitions() {
+  get_partitions
+  title
+  wprintf '[+] Detected partitions:\n'
+  lsblk "$HD_DEV"
+  wprintf '[?] EFI partition (empty if BIOS): '
+  read -r BOOT_PART
+  wprintf '[?] Root partition: '
+  read -r ROOT_PART
+  wprintf '[?] Swap partition (empty for none): '
+  read -r SWAP_PART
+  [ -z "$SWAP_PART" ] && SWAP_PART='none'
+}
+
+# Format partitions
+format_partitions() {
+  title
+  wprintf '[+] Formatting partitions...\n'
+  [ -n "$BOOT_PART" ] && {
+    wprintf '  > Formatting BOOT\n'
+    mkfs.fat -F32 "$BOOT_PART" || {
+      err "Failed to format EFI partition"
+      exit $FAILURE
+    }
+  }
+  wprintf '  > Formatting ROOT\n'
+  mkfs.ext4 "$ROOT_PART" || {
+    err "Failed to format root partition"
+    exit $FAILURE
+  }
+  [ "$SWAP_PART" != "none" ] && {
+    wprintf '  > Formatting SWAP\n'
+    mkswap "$SWAP_PART" || {
+      err "Failed to format swap partition"
+      exit $FAILURE
+    }
+  }
+}
+
+# Mount partitions
+mount_partitions() {
+  mount "$ROOT_PART" $CHROOT || {
+    err "Failed to mount root partition"
+    exit $FAILURE
+  }
+  [ -n "$BOOT_PART" ] && { mkdir -p "$CHROOT/boot" && mount "$BOOT_PART" "$CHROOT/boot" || {
+    err "Failed to mount EFI partition"
+    exit $FAILURE
+  }; }
+  [ "$SWAP_PART" != "none" ] && { swapon "$SWAP_PART" || {
+    err "Failed to enable swap"
+    exit $FAILURE
+  }; }
+}
+
+# Install system
+install_system() {
+  title
+  wprintf '[+] Installing system packages...\n'
+  [ -f /root/package-list.x86_64 ] || {
+    err "Package list /root/package-list.x86_64 not found"
+    exit $FAILURE
+  }
+  pacstrap $CHROOT - </root/package-list.x86_64 || {
+    err "Failed to install system packages"
+    exit $FAILURE
+  }
+  wprintf '[+] Installing local packages...\n'
+  chroot $CHROOT pacman -U --noconfirm /root/local_packages/oh-my-zsh-git-*.pkg.tar.zst
+}
+
+# Fstab
+gen_fstab() {
+  genfstab -U $CHROOT >>"$CHROOT/etc/fstab"
+}
+
+# Locale, keymap, hostname
+setup_system() {
+  grep -q "^$LOCALE" "$CHROOT/etc/locale.gen" || {
+    err "Invalid locale: $LOCALE"
+    exit $FAILURE
+  }
+  sed -i "s/^#${LOCALE}/${LOCALE}/" "$CHROOT/etc/locale.gen"
+  echo "LANG=$LOCALE" >"$CHROOT/etc/locale.conf"
+  echo "KEYMAP=$KEYMAP" >"$CHROOT/etc/vconsole.conf"
+  echo "$HOST_NAME" >"$CHROOT/etc/hostname"
+  chroot $CHROOT locale-gen || {
+    err "Failed to generate locale"
+    exit $FAILURE
+  }
+  mkdir -p "$CHROOT/etc/X11/xorg.conf.d"
+  cat >"$CHROOT/etc/X11/xorg.conf.d/00-keyboard.conf" <<EOF
+# Written by arche-install
+Section "InputClass"
+    Identifier "system-keyboard"
+    MatchIsKeyboard "on"
+    Option "XkbLayout" "$XKB_LAYOUTS"
+    Option "XkbOptions" "grp:$XKB_OPTION"
+EndSection
+EOF
+
+  cat >"$CHROOT/etc/profile.d/arche-firstboot.sh" <<'EOF'
+if [ ! -f /etc/pacman.d/gnupg/pubring.kbx ]; then
+  echo "[arche-linux] Initializing pacman keyring..."
+  pacman-key --init && pacman-key --populate archlinux
+  echo "[arche-linux] Pacman keyring initialized."
+  rm -- "$0"
+fi
+EOF
+  chmod +x "$CHROOT/etc/profile.d/arche-firstboot.sh"
+  install -Dm755 /root/arche-install "$CHROOT/usr/bin/arche-install"
+}
+
+# Timezone
+setup_timezone() {
+  ln -sf /usr/share/zoneinfo/UTC "$CHROOT/etc/localtime"
+  chroot $CHROOT hwclock --systohc
+}
+
+# User
+setup_user() {
+  title
+  wprintf '[?] New username: '
+  read -r NORMAL_USER
+  chroot $CHROOT useradd -m -G wheel,audio,video,network -s /bin/zsh "$NORMAL_USER"
+  wprintf "[+] Set password for $NORMAL_USER\n"
+  chroot $CHROOT passwd "$NORMAL_USER"
+  wprintf "[+] Set password for root\n"
+  chroot $CHROOT passwd
+  chroot $CHROOT chsh -s /bin/zsh root
+  sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' "$CHROOT/etc/sudoers"
+}
+
+# Network
+setup_network() {
+  chroot $CHROOT systemctl enable iwd systemd-networkd
+}
+
+# Bluetooth
+setup_bluetooth() {
+  chroot $CHROOT systemctl enable bluetooth
+}
+
+# Bootloader
+setup_bootloader() {
+  if [ -n "$BOOT_PART" ]; then
+    chroot $CHROOT pacman -S --noconfirm systemd-boot
+    chroot $CHROOT bootctl install || {
+      err "Failed to install systemd-boot"
+      exit $FAILURE
+    }
+    UUID=$(blkid -s UUID -o value "$ROOT_PART")
+    cat >"$CHROOT/boot/loader/entries/arche.conf" <<EOF
+title   Arche Linux
+linux   /vmlinuz-linux-hardened
+initrd  /initramfs-linux-hardened.img
+options root=UUID=$UUID rw slab_nomerge pti=on
+EOF
+  else
+    chroot $CHROOT pacman -S --noconfirm grub
+    chroot $CHROOT grub-install --target=i386-pc "$HD_DEV" || {
+      err "Failed to install GRUB"
+      exit $FAILURE
+    }
+    sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT="/&slab_nomerge pti=on /' "$CHROOT/etc/default/grub"
+    chroot $CHROOT grub-mkconfig -o /boot/grub/grub.cfg || {
+      err "Failed to configure GRUB"
+      exit $FAILURE
+    }
+  fi
+}
+
+# Main
+main() {
+  check_uid
+  verify_iso
+  ask_locale
+  ask_keymap
+  ask_hostname
+  get_hd_devs
+  ask_hd_dev
+  partition_disk
+  ask_partitions
+  format_partitions
+  mount_partitions
+  install_system
+  gen_fstab
+  setup_system
+  setup_timezone
+  setup_user
+  setup_network
+  setup_bluetooth
+  setup_bootloader
+  echo -e "\n${CYANB}Arche installation complete! Time to split your panes and :vsp your world!${NC}"
+}
+
+main "$@"

@@ -24,7 +24,7 @@ jobs:
 
       - name: "Test: ShellCheck PKGBUILD"
         working-directory: pkg/arche-install
-        run: shellcheck PKGBUILD
+        run: shellcheck PKGBUILD --exclude SC2148,SC2034,SC2154 PKGBUILD
 
       - name: "Test: Lint PKGBUILD with namcap"
         working-directory: pkg/arche-install

@@ -1,4 +1,5 @@
 base
+arch-install-scripts
 cloud-init
 hyperv
 linux-hardened
@@ -16,3 +17,18 @@ gnupg
 vim
 memtest86+
 edk2-shell
+gptfdisk
+parted
+dosfstools
+e2fsprogs
+efibootmgr
+intel-ucode
+amd-ucode
+sudo
+btrfs-progs
+xfsprogs
+f2fs-tools
+ntfs-3g
+grub
+man-db
+dhcpcd

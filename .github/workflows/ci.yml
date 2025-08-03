@@ -1,0 +1,77 @@
+name: "Test Arch Linux ISO Build"
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  test-package:
+    name: "Test Package: arche-install"
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:latest
+
+    steps:
+      - name: "Install System Dependencies"
+        run: |
+          pacman -Syu --noconfirm
+          pacman -S --noconfirm --needed base-devel git namcap shellcheck
+
+      - name: "Check out repository code"
+        uses: actions/checkout@v4
+
+      - name: "Test: ShellCheck PKGBUILD"
+        working-directory: pkg/arche-install
+        run: shellcheck PKGBUILD
+
+      - name: "Test: Lint PKGBUILD with namcap"
+        working-directory: pkg/arche-install
+        run: namcap PKGBUILD
+      
+      - name: "Test: .SRCINFO is up-to-date"
+        working-directory: pkg/arche-install
+        run: |
+          if [ ! -f .SRCINFO ]; then
+            makepkg --printsrcinfo > .SRCINFO
+          fi
+          makepkg --printsrcinfo > .SRCINFO.generated
+          diff .SRCINFO .SRCINFO.generated
+
+      - name: "Test: Build package with makepkg"
+        working-directory: pkg/arche-install
+        run: |
+          useradd -m builduser
+          chown -R builduser:builduser .
+          sudo -u builduser makepkg -sfc --noconfirm
+
+  test-iso-build:
+    name: "Test: ISO Build"
+    needs: test-package
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:latest
+
+    steps:
+      - name: "Install ISO Build Dependencies"
+        run: |
+          pacman -Syu --noconfirm
+          pacman -S --noconfirm --needed archiso git shellcheck
+
+      - name: "Check out repository code"
+        uses: actions/checkout@v4
+
+      - name: "Test: Lint profile scripts"
+        run: |
+          echo "--- Linting profiledef.sh ---"
+          shellcheck profiledef.sh
+          echo "--- Linting customize_airootfs.sh ---"
+          shellcheck airootfs/root/customize_airootfs.sh
+
+      - name: "Test: Build ISO with mkarchiso"
+        run: |
+          mkarchiso -v -w /tmp/archiso-work -o /tmp/archiso-out .
+      
+      - name: "List built files"
+        run: ls -lh /tmp/archiso-out

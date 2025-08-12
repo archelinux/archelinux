@@ -24,6 +24,9 @@ YELLOW="$(tput setaf 3)"
 NC="$(tput sgr0)"
 
 CHROOT='/mnt'
+FIRMWARE_MODE='UNKNOWN'
+ROOT_FS_TYPE='xfs'
+SWAPFILE_SIZE_GIB=''
 
 # Partition path validation start with /dev/
 val_dev_prefix() {
@@ -66,6 +69,25 @@ title() {
 # Check root
 check_uid() {
   [ "$(id -u)" != '0' ] && err 'You must be root to run the Arche installer!' && exit $FAILURE
+}
+
+# Detect firmware mode (UEFI or BIOS)
+detect_firmware() {
+  if [ -d /sys/firmware/efi ]; then
+    FIRMWARE_MODE='UEFI'
+  else
+    FIRMWARE_MODE='BIOS'
+  fi
+}
+
+# Basic network check to help users if offline
+check_network() {
+  if ping -c1 -W1 1.1.1.1 >/dev/null 2>&1 || ping -c1 -W1 archelinux.org >/dev/null 2>&1; then
+    return 0
+  else
+    warn "No network connectivity detected. Use 'iwctl' for Wi‑Fi or check Ethernet."
+    return 1
+  fi
 }
 
 # Verify ISO integrity
@@ -185,6 +207,7 @@ ask_keymap() {
 # Get available disks
 get_hd_devs() {
   HD_DEVS="$(lsblk -d -n -o NAME | grep -v loop)"
+  HD_DEVS_INFO="$(lsblk -d -n -o NAME,SIZE,MODEL | grep -v loop)"
 }
 
 # Ask for disk
@@ -192,7 +215,7 @@ ask_hd_dev() {
   while true; do
     title
     wprintf '[+] Available disks:\n'
-    for i in $HD_DEVS; do echo "    > $i"; done
+    echo "$HD_DEVS_INFO" | awk '{printf "    > %s %s %s\n", $1, $2, substr($0, index($0,$3))}'
     wprintf '[?] Choose disk (e.g. sda): '
     read -r HD_DEV
     if echo "$HD_DEVS" | grep -wq "$HD_DEV"; then
@@ -221,16 +244,35 @@ ask_partitions() {
   title
   wprintf '[+] Detected partitions:\n'
   lsblk "$HD_DEV"
-  # EFI partition (optional on BIOS)
+  # EFI partition (required on UEFI, optional on BIOS)
   while true; do
     wprintf '[?] EFI partition (empty if BIOS): '
     read -r BOOT_PART
     BOOT_PART="$(val_dev_prefix "$BOOT_PART")"
-    if [ -z "$BOOT_PART" ] || [ -b "$BOOT_PART" ]; then
-      break
+    if [ "$FIRMWARE_MODE" = 'UEFI' ]; then
+      if [ -b "$BOOT_PART" ]; then
+        break
+      else
+        err "UEFI mode detected, EFI partition is required."
+      fi
     else
-      err "Invalid EFI partition: $BOOT_PART"
+      if [ -z "$BOOT_PART" ] || [ -b "$BOOT_PART" ]; then
+        break
+      else
+        err "Invalid EFI partition: $BOOT_PART"
+      fi
     fi
+  done
+
+  # Root filesystem type
+  while true; do
+    wprintf '[?] Root filesystem [xfs|ext4|btrfs|f2fs|ext3|ext2] (default: xfs): '
+    read -r ROOT_FS_TYPE
+    [ -z "$ROOT_FS_TYPE" ] && ROOT_FS_TYPE='xfs'
+    case "$ROOT_FS_TYPE" in
+      xfs|ext4|btrfs|f2fs|ext3|ext2) break ;;
+      *) warn "Unsupported fs type. Choose one of: xfs, ext4, btrfs, f2fs, ext3, ext2." ;;
+    esac
   done
 
   # Root partition (required)
@@ -275,10 +317,30 @@ format_partitions() {
   wprintf '  > Formatting ROOT\n'
   unmount_if_mounted "$ROOT_PART"
   wipefs -fa "$ROOT_PART" >/dev/null 2>&1 || true
-  mkfs.ext4 "$ROOT_PART" || {
-    err "Failed to format root partition"
-    exit $FAILURE
-  }
+  case "$ROOT_FS_TYPE" in
+    ext4)
+      mkfs.ext4 -F "$ROOT_PART" || { err "Failed to format root (ext4)"; exit $FAILURE; }
+      ;;
+    ext3)
+      mkfs.ext3 -F "$ROOT_PART" || { err "Failed to format root (ext3)"; exit $FAILURE; }
+      ;;
+    ext2)
+      mkfs.ext2 -F "$ROOT_PART" || { err "Failed to format root (ext2)"; exit $FAILURE; }
+      ;;
+    btrfs)
+      mkfs.btrfs -f "$ROOT_PART" || { err "Failed to format root (btrfs)"; exit $FAILURE; }
+      ;;
+    xfs)
+      mkfs.xfs -f "$ROOT_PART" || { err "Failed to format root (xfs)"; exit $FAILURE; }
+      ;;
+    f2fs)
+      mkfs.f2fs -f "$ROOT_PART" || { err "Failed to format root (f2fs)"; exit $FAILURE; }
+      ;;
+    *)
+      err "Unsupported filesystem type: $ROOT_FS_TYPE"
+      exit $FAILURE
+      ;;
+  esac
   [ "$SWAP_PART" != "none" ] && {
     wprintf '  > Formatting SWAP\n'
     unmount_if_mounted "$SWAP_PART"
@@ -341,6 +403,25 @@ setup_system() {
     err "Failed to generate locale"
     exit $FAILURE
   }
+  # Branding
+  cat >"$CHROOT/etc/os-release" <<'EOF'
+NAME="Arche Linux"
+PRETTY_NAME="Arche Linux"
+ID=arche
+ID_LIKE=arch
+BUILD_ID=rolling
+ANSI_COLOR="38;2;23;147;209"
+HOME_URL="https://archelinux.org"
+DOCUMENTATION_URL="https://archelinux.org/docs"
+SUPPORT_URL="https://archelinux.org/community"
+BUG_REPORT_URL="https://archelinux.org/issues"
+EOF
+  echo "Welcome to Arche Linux \n \l" >"$CHROOT/etc/issue"
+  cat >"$CHROOT/etc/motd" <<'EOF'
+Arche Linux — minimal, transparent, yours.
+
+Run `arche-install` to start the guided installer.
+EOF
   mkdir -p "$CHROOT/etc/X11/xorg.conf.d"
   cat >"$CHROOT/etc/X11/xorg.conf.d/00-keyboard.conf" <<EOF
 # Written by arche-install
@@ -386,7 +467,7 @@ setup_user() {
 
 # Network
 setup_network() {
-  chroot $CHROOT systemctl enable iwd systemd-networkd
+  chroot $CHROOT systemctl enable iwd systemd-networkd systemd-resolved
 }
 
 # Bluetooth
@@ -396,7 +477,7 @@ setup_bluetooth() {
 
 # Bootloader
 setup_bootloader() {
-  if [ -n "$BOOT_PART" ]; then
+  if [ "$FIRMWARE_MODE" = 'UEFI' ]; then
     chroot $CHROOT pacman -S --noconfirm systemd-boot
     chroot $CHROOT bootctl install || {
       err "Failed to install systemd-boot"
@@ -426,6 +507,8 @@ EOF
 # Main
 main() {
   check_uid
+  detect_firmware
+  check_network || true
   verify_iso
   ask_locale
   ask_keymap
@@ -436,8 +519,10 @@ main() {
   ask_partitions
   format_partitions
   mount_partitions
+  ask_swapfile
   install_system
   gen_fstab
+  create_swapfile_in_chroot
   setup_system
   setup_timezone
   setup_user

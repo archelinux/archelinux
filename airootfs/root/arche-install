@@ -25,8 +25,8 @@ NC="$(tput sgr0)"
 
 CHROOT='/mnt'
 
-# Ensure a partition path starts with /dev/
-ensure_dev_prefix() {
+# Partition path validation start with /dev/
+val_dev_prefix() {
   local input_path="$1"
   [ -z "$input_path" ] && { echo ""; return; }
   case "$input_path" in
@@ -35,7 +35,6 @@ ensure_dev_prefix() {
   esac
 }
 
-# Unmount a device if currently mounted anywhere
 unmount_if_mounted() {
   local device_path="$1"
   [ -z "$device_path" ] && return 0
@@ -226,7 +225,7 @@ ask_partitions() {
   while true; do
     wprintf '[?] EFI partition (empty if BIOS): '
     read -r BOOT_PART
-    BOOT_PART="$(ensure_dev_prefix "$BOOT_PART")"
+    BOOT_PART="$(val_dev_prefix "$BOOT_PART")"
     if [ -z "$BOOT_PART" ] || [ -b "$BOOT_PART" ]; then
       break
     else
@@ -238,7 +237,7 @@ ask_partitions() {
   while true; do
     wprintf '[?] Root partition: '
     read -r ROOT_PART
-    ROOT_PART="$(ensure_dev_prefix "$ROOT_PART")"
+    ROOT_PART="$(val_dev_prefix "$ROOT_PART")"
     if [ -b "$ROOT_PART" ]; then
       break
     else
@@ -251,7 +250,7 @@ ask_partitions() {
     wprintf '[?] Swap partition (empty for none): '
     read -r SWAP_PART
     [ -z "$SWAP_PART" ] && { SWAP_PART='none'; break; }
-    SWAP_PART="$(ensure_dev_prefix "$SWAP_PART")"
+    SWAP_PART="$(val_dev_prefix "$SWAP_PART")"
     if [ -b "$SWAP_PART" ]; then
       break
     else

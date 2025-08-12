@@ -6,6 +6,13 @@ pkgdesc="The official installer for Arche Linux"
 arch=('any')
 url="https://arche-linux.org"
 license=('GPL3')
+
+source=()
+sha256sums=()
+
+prepare() {
+    install -Dm755 "$startdir/../../airootfs/root/arche-install" "$srcdir/arche-install"
+}
 depends=(
     'bash'
     'util-linux'

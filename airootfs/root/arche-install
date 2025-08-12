@@ -25,6 +25,29 @@ NC="$(tput sgr0)"
 
 CHROOT='/mnt'
 
+# Partition path validation start with /dev/
+val_dev_prefix() {
+  local input_path="$1"
+  [ -z "$input_path" ] && { echo ""; return; }
+  case "$input_path" in
+    /dev/*) echo "$input_path" ;;
+    *) echo "/dev/$input_path" ;;
+  esac
+}
+
+unmount_if_mounted() {
+  local device_path="$1"
+  [ -z "$device_path" ] && return 0
+  local mount_points
+  mount_points=$(findmnt -nr -o TARGET --source "$device_path" 2>/dev/null || true)
+  if [ -n "$mount_points" ]; then
+    while read -r mp; do
+      [ -z "$mp" ] && continue
+      umount -q "$mp" 2>/dev/null || true
+    done <<<"$mount_points"
+  fi
+}
+
 # Exit on CTRL + c
 trap "echo -e '\n${RED}Aborted by user${NC}'; exit $FAILURE" 2
 
@@ -198,13 +221,42 @@ ask_partitions() {
   title
   wprintf '[+] Detected partitions:\n'
   lsblk "$HD_DEV"
-  wprintf '[?] EFI partition (empty if BIOS): '
-  read -r BOOT_PART
-  wprintf '[?] Root partition: '
-  read -r ROOT_PART
-  wprintf '[?] Swap partition (empty for none): '
-  read -r SWAP_PART
-  [ -z "$SWAP_PART" ] && SWAP_PART='none'
+  # EFI partition (optional on BIOS)
+  while true; do
+    wprintf '[?] EFI partition (empty if BIOS): '
+    read -r BOOT_PART
+    BOOT_PART="$(val_dev_prefix "$BOOT_PART")"
+    if [ -z "$BOOT_PART" ] || [ -b "$BOOT_PART" ]; then
+      break
+    else
+      err "Invalid EFI partition: $BOOT_PART"
+    fi
+  done
+
+  # Root partition (required)
+  while true; do
+    wprintf '[?] Root partition: '
+    read -r ROOT_PART
+    ROOT_PART="$(val_dev_prefix "$ROOT_PART")"
+    if [ -b "$ROOT_PART" ]; then
+      break
+    else
+      err "Invalid root partition: $ROOT_PART"
+    fi
+  done
+
+  # Swap partition (optional)
+  while true; do
+    wprintf '[?] Swap partition (empty for none): '
+    read -r SWAP_PART
+    [ -z "$SWAP_PART" ] && { SWAP_PART='none'; break; }
+    SWAP_PART="$(val_dev_prefix "$SWAP_PART")"
+    if [ -b "$SWAP_PART" ]; then
+      break
+    else
+      err "Invalid swap partition: $SWAP_PART"
+    fi
+  done
 }
 
 # Format partitions
@@ -213,18 +265,24 @@ format_partitions() {
   wprintf '[+] Formatting partitions...\n'
   [ -n "$BOOT_PART" ] && {
     wprintf '  > Formatting BOOT\n'
+    unmount_if_mounted "$BOOT_PART"
+    wipefs -fa "$BOOT_PART" >/dev/null 2>&1 || true
     mkfs.fat -F32 "$BOOT_PART" || {
       err "Failed to format EFI partition"
       exit $FAILURE
     }
   }
   wprintf '  > Formatting ROOT\n'
+  unmount_if_mounted "$ROOT_PART"
+  wipefs -fa "$ROOT_PART" >/dev/null 2>&1 || true
   mkfs.ext4 "$ROOT_PART" || {
     err "Failed to format root partition"
     exit $FAILURE
   }
   [ "$SWAP_PART" != "none" ] && {
     wprintf '  > Formatting SWAP\n'
+    unmount_if_mounted "$SWAP_PART"
+    wipefs -fa "$SWAP_PART" >/dev/null 2>&1 || true
     mkswap "$SWAP_PART" || {
       err "Failed to format swap partition"
       exit $FAILURE

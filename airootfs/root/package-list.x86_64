@@ -18,8 +18,11 @@ man-db
 pacman-contrib
 binutils 
 pkgconf
+e2fsprogs
+btrfs-progs
+xfsprogs
+f2fs-tools
 iwd
-networkd
 iptables 
 dnsutils 
 wireplumber

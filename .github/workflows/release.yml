@@ -1,0 +1,120 @@
+name: "Release ISO"
+
+on:
+  workflow_dispatch:
+    inputs:
+      prerelease:
+        description: "Mark as prerelease"
+        required: false
+        default: "false"
+      create_release:
+        description: "Also create a GitHub Release"
+        required: false
+        default: "false"
+      tag_name:
+        description: "Tag name for the release (default: rolling-YYYYMMDD)"
+        required: false
+      release_name:
+        description: "Release title (default: Arche Linux rolling YYYY-MM-DD)"
+        required: false
+
+jobs:
+  build-and-release:
+    name: "Build and Release ISO"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    container:
+      image: archlinux:latest
+      options: --privileged
+
+    steps:
+      - name: "Install dependencies"
+        run: |
+          pacman -Syu --noconfirm
+          pacman -S --noconfirm --needed archiso grub git gnupg jq memtest86+-efi coreutils findutils sed util-linux
+
+      - name: "Checkout"
+        uses: actions/checkout@v4
+
+      - name: "Build ISO"
+        run: |
+          mkarchiso -v -w /tmp/archiso-work -o /tmp/archiso-out .
+
+      - name: "Generate checksums"
+        id: sums
+        run: |
+          ISO_PATH=$(ls -1 /tmp/archiso-out/*.iso | head -n1)
+          ISO_NAME=$(basename "$ISO_PATH")
+          (cd /tmp/archiso-out && sha256sum "$ISO_NAME" > "$ISO_NAME.sha256")
+          echo "iso_path=$ISO_PATH" >> $GITHUB_OUTPUT
+          echo "iso_name=$ISO_NAME" >> $GITHUB_OUTPUT
+          echo "out_dir=/tmp/archiso-out" >> $GITHUB_OUTPUT
+
+      - name: "Compute release metadata"
+        id: meta
+        run: |
+          DATE=$(date -u +%Y%m%d)
+          if [ -z "${{ github.event.inputs.tag_name }}" ]; then
+            echo "tag_name=rolling-$DATE" >> $GITHUB_OUTPUT
+          else
+            echo "tag_name=${{ github.event.inputs.tag_name }}" >> $GITHUB_OUTPUT
+          fi
+          if [ -z "${{ github.event.inputs.release_name }}" ]; then
+            echo "release_name=Arche Linux rolling ${DATE:0:4}-${DATE:4:2}-${DATE:6:2}" >> $GITHUB_OUTPUT
+          else
+            echo "release_name=${{ github.event.inputs.release_name }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: "Generate ephemeral GPG key"
+        id: genkey
+        run: |
+          REL_DATE=$(date -u +%Y-%m-%d)
+          cat >keyparams <<EOF
+          %echo Generating ephemeral Arche Linux ISO key
+          Key-Type: RSA
+          Key-Length: 4096
+          Name-Real: Arche Linux ISO $REL_DATE
+          Name-Email: releases@archelinux.org
+          Expire-Date: 0
+          %no-protection
+          %commit
+          %echo done
+          EOF
+          gpg --batch --generate-key keyparams
+          KEYID=$(gpg --list-secret-keys --with-colons | awk -F: '/^sec:/ {print $5; exit}')
+          echo "keyid=$KEYID" >> $GITHUB_OUTPUT
+          gpg --export --armor "$KEYID" > ${{ steps.sums.outputs.out_dir }}/archelinux-release-public.asc
+
+      - name: "Sign checksum and ISO"
+        run: |
+          cd ${{ steps.sums.outputs.out_dir }}
+          gpg --batch --yes --detach-sign "${{ steps.sums.outputs.iso_name }}.sha256"
+          gpg --batch --yes --detach-sign "${{ steps.sums.outputs.iso_name }}"
+
+      - name: "Upload artifacts"
+        uses: actions/upload-artifact@v4
+        with:
+          name: archelinux-iso
+          path: |
+            ${{ steps.sums.outputs.out_dir }}/${{ steps.sums.outputs.iso_name }}
+            ${{ steps.sums.outputs.out_dir }}/${{ steps.sums.outputs.iso_name }}.sha256
+            ${{ steps.sums.outputs.out_dir }}/${{ steps.sums.outputs.iso_name }}.sha256.sig
+            ${{ steps.sums.outputs.out_dir }}/${{ steps.sums.outputs.iso_name }}.sig
+            ${{ steps.sums.outputs.out_dir }}/archelinux-release-public.asc
+          if-no-files-found: warn
+
+      - name: "Create GitHub Release"
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.create_release == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.meta.outputs.tag_name }}
+          name: ${{ steps.meta.outputs.release_name }}
+          files: |
+            ${{ steps.sums.outputs.out_dir }}/${{ steps.sums.outputs.iso_name }}
+            ${{ steps.sums.outputs.out_dir }}/${{ steps.sums.outputs.iso_name }}.sha256
+            ${{ steps.sums.outputs.out_dir }}/${{ steps.sums.outputs.iso_name }}.sha256.sig
+            ${{ steps.sums.outputs.out_dir }}/${{ steps.sums.outputs.iso_name }}.sig
+            ${{ steps.sums.outputs.out_dir }}/archelinux-release-public.asc
+          generate_release_notes: true
+          prerelease: ${{ github.event.inputs.prerelease == 'true' }}

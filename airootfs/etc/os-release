@@ -1,0 +1,10 @@
+NAME="Arche Linux"
+PRETTY_NAME="Arche Linux"
+ID=arche
+ID_LIKE=arch
+BUILD_ID=rolling
+ANSI_COLOR="38;2;23;147;209"
+HOME_URL="https://archelinux.org"
+DOCUMENTATION_URL="https://archelinux.org/docs"
+SUPPORT_URL="https://archelinux.org/community"
+BUG_REPORT_URL="https://archelinux.org/issues"

@@ -17,7 +17,9 @@ jobs:
       - name: "Install System Dependencies"
         run: |
           pacman -Syu --noconfirm
-          pacman -S --noconfirm --needed base-devel git namcap shellcheck
+          pacman -S --noconfirm --needed \
+            base-devel git namcap shellcheck \
+            util-linux coreutils e2fsprogs parted dosfstools
 
       - name: "Check out repository code"
         uses: actions/checkout@v4
@@ -33,18 +35,23 @@ jobs:
       - name: "Test: .SRCINFO is up-to-date"
         working-directory: pkg/arche-install
         run: |
-          if [ ! -f .SRCINFO ]; then
-            makepkg --printsrcinfo > .SRCINFO
-          fi
-          makepkg --printsrcinfo > .SRCINFO.generated
+          useradd -m builduser || true
+          chown -R builduser:builduser .
+          runuser -u builduser -- bash -lc '
+            if [ ! -f .SRCINFO ]; then
+              makepkg --printsrcinfo > .SRCINFO
+            fi
+            makepkg --printsrcinfo > .SRCINFO.generated
+          '
           diff .SRCINFO .SRCINFO.generated
 
       - name: "Test: Build package with makepkg"
         working-directory: pkg/arche-install
         run: |
-          useradd -m builduser
+          useradd -m builduser || true
           chown -R builduser:builduser .
-          sudo -u builduser makepkg -sfc --noconfirm
+          # Dependencies are pre-installed above; avoid sudo prompts by not using -s
+          runuser -u builduser -- makepkg -fc --noconfirm
 
   test-iso-build:
     name: "Test: ISO Build"
@@ -52,12 +59,13 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: archlinux:latest
+      options: --privileged
 
     steps:
       - name: "Install ISO Build Dependencies"
         run: |
           pacman -Syu --noconfirm
-          pacman -S --noconfirm --needed archiso git shellcheck
+          pacman -S --noconfirm --needed archiso grub git shellcheck memtest86+-efi
 
       - name: "Check out repository code"
         uses: actions/checkout@v4

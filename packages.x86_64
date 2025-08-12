@@ -16,6 +16,7 @@ iwd
 gnupg
 vim
 memtest86+
+memtest86+-efi
 edk2-shell
 gptfdisk
 parted

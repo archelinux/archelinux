@@ -3,6 +3,14 @@ base-devel
 linux-hardened
 linux-firmware
 mkinitcpio
+efibootmgr
+grub
+intel-ucode
+amd-ucode
+open-vm-tools
+qemu-guest-agent
+mesa
+xf86-video-vesa
 vi
 vim
 git
@@ -27,6 +35,8 @@ iptables
 dnsutils 
 wireplumber
 pipewire
+pipewire-pulse
+pipewire-alsa
 bluez
 bluez-utils 
 iw 
@@ -59,6 +69,9 @@ zsh
 i3-wm
 i3status
 i3blocks
+i3lock
+xss-lock
+dex
 dmenu
 ranger
 ttf-dejavu

@@ -235,7 +235,7 @@ partition_disk() {
 
 # Get partitions
 get_partitions() {
-  PARTITIONS=$(lsblk -ln -o NAME "$HD_DEV" | grep -v "$(basename "$HD_DEV")" | awk '{print "/dev/"$1}')
+  PARTITIONS=$(lsblk -ln -o NAME "$HD_DEV" | grep -vx "$(basename "$HD_DEV")" | awk '{print "/dev/"$1}')
 }
 
 # Ask for partitions
@@ -299,6 +299,38 @@ ask_partitions() {
       err "Invalid swap partition: $SWAP_PART"
     fi
   done
+}
+
+# Ask for a swapfile when no swap partition was chosen
+ask_swapfile() {
+  [ "$SWAP_PART" != "none" ] && return 0
+  title
+  wprintf '[?] No swap partition selected. Create a swapfile instead? Size in GiB (empty for none): '
+  read -r SWAPFILE_SIZE_GIB
+  if [ -n "$SWAPFILE_SIZE_GIB" ] && ! [[ "$SWAPFILE_SIZE_GIB" =~ ^[0-9]+$ ]]; then
+    warn "Invalid size. Skipping swapfile."
+    SWAPFILE_SIZE_GIB=''
+  fi
+}
+
+# Create and enable the swapfile inside the freshly installed target
+create_swapfile_in_chroot() {
+  [ -z "$SWAPFILE_SIZE_GIB" ] && return 0
+  if [ "$ROOT_FS_TYPE" = 'btrfs' ]; then
+    warn "Swapfiles on btrfs require special handling; skipping swapfile creation."
+    return 0
+  fi
+  wprintf '[+] Creating %sGiB swapfile...\n' "$SWAPFILE_SIZE_GIB"
+  chroot $CHROOT fallocate -l "${SWAPFILE_SIZE_GIB}G" /swapfile || {
+    err "Failed to allocate swapfile"
+    return $FAILURE
+  }
+  chroot $CHROOT chmod 600 /swapfile
+  chroot $CHROOT mkswap /swapfile || {
+    err "Failed to format swapfile"
+    return $FAILURE
+  }
+  echo '/swapfile none swap defaults 0 0' >>"$CHROOT/etc/fstab"
 }
 
 # Format partitions
@@ -381,7 +413,15 @@ install_system() {
     exit $FAILURE
   }
   wprintf '[+] Installing local packages...\n'
-  chroot $CHROOT pacman -U --noconfirm /root/local_packages/oh-my-zsh-git-*.pkg.tar.zst
+  mkdir -p "$CHROOT/root/local_packages"
+  cp /root/local_packages/oh-my-zsh-git-*.pkg.tar.zst "$CHROOT/root/local_packages/" || {
+    err "Failed to stage oh-my-zsh package into target"
+    exit $FAILURE
+  }
+  chroot $CHROOT pacman -U --noconfirm /root/local_packages/oh-my-zsh-git-*.pkg.tar.zst || {
+    err "Failed to install oh-my-zsh"
+    exit $FAILURE
+  }
 }
 
 # Fstab
@@ -484,9 +524,13 @@ setup_bootloader() {
       exit $FAILURE
     }
     UUID=$(blkid -s UUID -o value "$ROOT_PART")
+    UCODE_INITRD=''
+    [ -f "$CHROOT/boot/intel-ucode.img" ] && UCODE_INITRD="initrd  /intel-ucode.img"
+    [ -f "$CHROOT/boot/amd-ucode.img" ] && UCODE_INITRD="initrd  /amd-ucode.img"
     cat >"$CHROOT/boot/loader/entries/arche.conf" <<EOF
 title   Arche Linux
 linux   /vmlinuz-linux-hardened
+$UCODE_INITRD
 initrd  /initramfs-linux-hardened.img
 options root=UUID=$UUID rw slab_nomerge pti=on
 EOF

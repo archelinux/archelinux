@@ -1,0 +1,10 @@
+[Trigger]
+Operation = Upgrade
+Operation = Remove
+Type = Package
+Target = *
+
+[Action]
+Description = Keep the last three cached package versions
+When = PostTransaction
+Exec = /usr/bin/paccache -r -k 3

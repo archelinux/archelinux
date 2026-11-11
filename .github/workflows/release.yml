@@ -26,7 +26,7 @@ jobs:
       contents: write
     container:
       image: archlinux:latest
-      options: --privileged
+      options: --privileged --volume /dev:/dev
 
     steps:
       - name: "Install dependencies"
@@ -36,6 +36,9 @@ jobs:
 
       - name: "Checkout"
         uses: actions/checkout@v4
+
+      - name: "Build package repository"
+        run: bash scripts/build-repo.sh
 
       - name: "Build ISO"
         run: |
@@ -66,38 +69,30 @@ jobs:
             echo "release_name=${{ github.event.inputs.release_name }}" >> $GITHUB_OUTPUT
           fi
 
-      - name: "Generate ephemeral GPG key"
-        id: genkey
+      - name: "Import persistent key and sign"
+        env:
+          ARCHE_SIGNING_KEY: ${{ secrets.ARCHE_SIGNING_KEY }}
+          ARCHE_SIGNING_FINGERPRINT: ${{ secrets.ARCHE_SIGNING_FINGERPRINT }}
+          ARCHE_SIGNING_PASSPHRASE: ${{ secrets.ARCHE_SIGNING_PASSPHRASE }}
         run: |
-          REL_DATE=$(date -u +%Y-%m-%d)
-          cat >keyparams <<EOF
-          %echo Generating ephemeral Arche Linux ISO key
-          Key-Type: RSA
-          Key-Length: 4096
-          Name-Real: Arche Linux ISO $REL_DATE
-          Name-Email: releases@archelinux.org
-          Expire-Date: 0
-          %no-protection
-          %commit
-          %echo done
-          EOF
-          gpg --batch --generate-key keyparams
-          KEYID=$(gpg --list-secret-keys --with-colons | awk -F: '/^sec:/ {print $5; exit}')
-          echo "keyid=$KEYID" >> $GITHUB_OUTPUT
-          gpg --export --armor "$KEYID" > ${{ steps.sums.outputs.out_dir }}/archelinux-release-public.asc
-
-      - name: "Sign checksum and ISO"
-        run: |
+          set -euo pipefail
+          test -n "$ARCHE_SIGNING_KEY"
+          test -n "$ARCHE_SIGNING_FINGERPRINT"
+          printf '%s' "$ARCHE_SIGNING_KEY" | gpg --batch --import
           cd ${{ steps.sums.outputs.out_dir }}
-          gpg --batch --yes --detach-sign "${{ steps.sums.outputs.iso_name }}.sha256"
-          gpg --batch --yes --detach-sign "${{ steps.sums.outputs.iso_name }}"
+          gpg --armor --export "$ARCHE_SIGNING_FINGERPRINT" > archelinux-release-public.asc
+          for file in "${{ steps.sums.outputs.iso_name }}" "${{ steps.sums.outputs.iso_name }}.sha256"; do
+            printf '%s' "$ARCHE_SIGNING_PASSPHRASE" | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 --local-user "$ARCHE_SIGNING_FINGERPRINT" --detach-sign "$file"
+          done
+          split -b 1536M -d -a 2 "${{ steps.sums.outputs.iso_name }}" "${{ steps.sums.outputs.iso_name }}.part"
+          rm "${{ steps.sums.outputs.iso_name }}"
 
       - name: "Upload artifacts"
         uses: actions/upload-artifact@v4
         with:
           name: archelinux-iso
           path: |
-            ${{ steps.sums.outputs.out_dir }}/${{ steps.sums.outputs.iso_name }}
+            ${{ steps.sums.outputs.out_dir }}/${{ steps.sums.outputs.iso_name }}.part*
             ${{ steps.sums.outputs.out_dir }}/${{ steps.sums.outputs.iso_name }}.sha256
             ${{ steps.sums.outputs.out_dir }}/${{ steps.sums.outputs.iso_name }}.sha256.sig
             ${{ steps.sums.outputs.out_dir }}/${{ steps.sums.outputs.iso_name }}.sig
@@ -111,7 +106,7 @@ jobs:
           tag_name: ${{ steps.meta.outputs.tag_name }}
           name: ${{ steps.meta.outputs.release_name }}
           files: |
-            ${{ steps.sums.outputs.out_dir }}/${{ steps.sums.outputs.iso_name }}
+            ${{ steps.sums.outputs.out_dir }}/${{ steps.sums.outputs.iso_name }}.part*
             ${{ steps.sums.outputs.out_dir }}/${{ steps.sums.outputs.iso_name }}.sha256
             ${{ steps.sums.outputs.out_dir }}/${{ steps.sums.outputs.iso_name }}.sha256.sig
             ${{ steps.sums.outputs.out_dir }}/${{ steps.sums.outputs.iso_name }}.sig

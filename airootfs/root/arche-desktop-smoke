@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# Validate installed desktop templates in a disposable headless Wayland session.
+set -euo pipefail
+runtime=$(mktemp -d /tmp/arche-desktop.XXXXXX)
+trap 'rm -rf "$runtime"' EXIT
+mkdir -p "$runtime/home"
+cp -a /usr/share/arche/skel/. "$runtime/home/"
+cat > "$runtime/check" <<'CHECK'
+#!/usr/bin/env bash
+set -euo pipefail
+sway -c "$HOME/.config/sway/config" > "$XDG_RUNTIME_DIR/sway.log" 2>&1 &
+compositor=$!
+trap 'kill "$compositor" 2>/dev/null || true' EXIT
+for _ in {1..30}; do
+  socket=$(find "$XDG_RUNTIME_DIR" -name 'sway-ipc.*.sock' -print -quit)
+  [[ -n $socket ]] && break
+  sleep 0.2
+done
+export SWAYSOCK=$socket
+swaymsg exec 'foot /bin/sh -c "sleep 30"' >/dev/null
+sleep 3
+swaymsg -t get_tree > "$XDG_RUNTIME_DIR/tree.json"
+python - "$XDG_RUNTIME_DIR/tree.json" <<'PY'
+import json,sys
+nodes=[]
+def visit(node):
+    if node.get('app_id') == 'foot': nodes.append(node)
+    for child in node.get('nodes', []) + node.get('floating_nodes', []): visit(child)
+visit(json.load(open(sys.argv[1])))
+assert nodes, 'Foot did not start'
+assert all(n['border']=='none' and n['current_border_width']==0 for n in nodes)
+PY
+pgrep -u "$(id -u)" -x waybar >/dev/null
+if grep -Ei 'style.css:.*(error|expected)|invalid section name' "$XDG_RUNTIME_DIR/sway.log"; then
+  exit 1
+fi
+swaymsg exit >/dev/null 2>&1 || true
+wait "$compositor"
+echo 'Headless Sway, Waybar, Foot and zero-width borders passed'
+CHECK
+chmod 755 "$runtime/check"
+chown -R nobody:nobody "$runtime"
+if ! timeout 30 runuser -u nobody -- env HOME="$runtime/home" XDG_CONFIG_HOME="$runtime/home/.config" XDG_RUNTIME_DIR="$runtime" WLR_BACKENDS=headless WLR_RENDERER=pixman WLR_HEADLESS_OUTPUTS=1 dbus-run-session -- "$runtime/check"; then
+  cat "$runtime/sway.log" >&2
+  exit 1
+fi

@@ -1,0 +1,35 @@
+name: Build and verify ISO
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  iso:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Archelinux ISO
+        env:
+          WORKSPACE: ${{ github.workspace }}
+        run: |
+          docker run --rm --privileged \
+            -v /dev:/dev \
+            -v "$WORKSPACE:/workspace" \
+            -w /workspace \
+            archlinux:latest /bin/bash -euc '
+              pacman -Syu --needed --noconfirm archiso grub git base-devel sudo python python-yaml shellcheck xfsprogs
+              losetup --find
+              bash tests/check.sh
+              ./scripts/build-repo.sh
+              mkarchiso -v -w /tmp/archiso-tmp -o /workspace/out /workspace
+              arch-chroot /tmp/archiso-tmp/x86_64/airootfs /bin/bash /root/arche-smoke-test
+              arch-chroot /tmp/archiso-tmp/x86_64/airootfs /bin/bash /root/arche-desktop-smoke
+            '
+      - uses: actions/upload-artifact@v4
+        with:
+          name: archelinux-iso
+          path: out/*.iso
+          if-no-files-found: error

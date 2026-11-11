@@ -1,0 +1,11 @@
+# Generated package repository and live pacman configuration
+/airootfs/usr/share/arche/repo/
+*.pkg.tar.zst
+*.pkg.tar.zst.sig
+/pkgs/*/src/
+/pkgs/*/pkg/
+
+/pkgs/local-repo/
+/out/
+
+__pycache__/

@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# Run inside the built Arch image, or a freshly installed system.
+set -euo pipefail
+for command in lua-language-server rust-analyzer basedpyright-langserver gopls uv bun cargo-binstall ast-grep; do
+  command -v "$command"
+done
+# archiso moves /boot images onto the ISO boot partition before this check.
+pacman -Qk linux-zen linux-lts
+nvim --headless -i NONE -u /etc/skel/.config/nvim/init.lua -l /root/arche-smoke.lua
+for unit in ollama llama-server; do
+  test ! -e "/etc/systemd/user/default.target.wants/$unit.service"
+done
+# Report real startup latency, including distribution defaults and generated hooks.
+python - <<'PY'
+import os, statistics, subprocess, tempfile, time, shutil
+with tempfile.TemporaryDirectory() as home:
+    shutil.copytree('/etc/skel', home, dirs_exist_ok=True)
+    env=dict(os.environ, HOME=home, ZDOTDIR=home, XDG_CONFIG_HOME=home+'/.config', TERM='xterm-256color')
+    for shell in ('bash', 'zsh', 'fish'):
+        samples=[]
+        for _ in range(21):
+            start=time.perf_counter()
+            subprocess.run([shell, '-i', '-c', 'exit'], env=env, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            samples.append((time.perf_counter()-start)*1000)
+        median=statistics.median(samples[1:])
+        print(f'{shell}: {median:.2f} ms warm median; goal <15 ms', flush=True)
+        if median >= 15:
+            raise SystemExit(f'{shell} exceeded startup budget on this runner')
+PY

@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+set -euo pipefail
+if (( $# != 1 )) || [[ ! $1 =~ ^[a-zA-Z0-9@._+][a-zA-Z0-9@._+-]*$ ]]; then
+  echo "Usage: arche-rollback PACKAGE" >&2
+  exit 2
+fi
+package=$1
+installed=$(pacman -Q "$package")
+installed=${installed#* }
+best_version='' best_file=''
+shopt -s nullglob
+for file in /var/cache/pacman/pkg/"$package"-*.pkg.tar.*; do
+  [[ $file != *.sig ]] || continue
+  info=$(pacman -Qp -- "$file" 2>/dev/null) || continue
+  read -r name version <<< "$info"
+  [[ $name == "$package" ]] || continue
+  (( $(vercmp "$version" "$installed") < 0 )) || continue
+  if [[ -z $best_version ]] || (( $(vercmp "$version" "$best_version") > 0 )); then
+    best_version=$version best_file=$file
+  fi
+done
+if [[ -z $best_file ]]; then
+  echo "No cached rollback version found for $package" >&2
+  exit 1
+fi
+if (( EUID == 0 )); then
+  exec pacman -U --noconfirm -- "$best_file"
+else
+  exec sudo pacman -U --noconfirm -- "$best_file"
+fi

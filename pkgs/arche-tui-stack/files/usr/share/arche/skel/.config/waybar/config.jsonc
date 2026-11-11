@@ -1,0 +1,107 @@
+{
+  "layer": "top",
+  "position": "top",
+  "height": 44,
+  "modules-center": [
+    "sway/workspaces",
+    "sway/mode",
+    "mpris",
+    "idle_inhibitor",
+    "group/status",
+    "battery",
+    "tray",
+    "clock"
+  ],
+  "sway/workspaces": {
+    "disable-scroll": true,
+    "all-outputs": true,
+    "format": "{name}"
+  },
+  "sway/mode": {
+    "format": "⚙ {}"
+  },
+  "mpris": {
+    "format": "{player_icon} {dynamic}",
+    "format-paused": "⏸ {dynamic}",
+    "dynamic-len": 30,
+    "player-icons": {
+      "default": "▶"
+    }
+  },
+  "idle_inhibitor": {
+    "format": "{icon}",
+    "format-icons": {
+      "activated": "",
+      "deactivated": ""
+    }
+  },
+  "cpu": {
+    "format": " {usage}%",
+    "interval": 5,
+    "on-click": "foot -e top",
+    "tooltip": false
+  },
+  "memory": {
+    "format": " {percentage}%",
+    "interval": 5,
+    "tooltip-format": "{used:0.1f}G / {total:0.1f}G used"
+  },
+  "backlight": {
+    "format": " {percent}%",
+    "on-scroll-up": "brightnessctl -q set +5%",
+    "on-scroll-down": "brightnessctl -q set 5%-"
+  },
+  "wireplumber": {
+    "format": "  {volume}%",
+    "format-muted": "  muted",
+    "on-click": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle",
+    "scroll-step": 5
+  },
+  "network": {
+    "format-wifi": "  {essid} {signalStrength}%",
+    "format-ethernet": "  {ifname}",
+    "format-disconnected": "  offline",
+    "tooltip-format": "{ifname}: {ipaddr}/{cidr}",
+    "interval": 10
+  },
+  "sway/language": {
+    "format": " {short}",
+    "tooltip": false
+  },
+  "battery": {
+    "states": {
+      "warning": 20,
+      "critical": 10
+    },
+    "format": "{icon} {capacity}%",
+    "format-charging": " {capacity}%",
+    "format-plugged": " {capacity}%",
+    "format-icons": [
+      "",
+      "",
+      "",
+      "",
+      ""
+    ]
+  },
+  "tray": {
+    "icon-size": 16,
+    "spacing": 8
+  },
+  "clock": {
+    "format": " {:%H:%M}",
+    "format-alt": "{:%A, %B %d, %Y (%R)}",
+    "tooltip-format": "<tt><small>{calendar}</small></tt>"
+  },
+  "group/status": {
+    "orientation": "horizontal",
+    "modules": [
+      "cpu",
+      "memory",
+      "backlight",
+      "wireplumber",
+      "network",
+      "sway/language"
+    ]
+  }
+}

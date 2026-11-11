@@ -1,3 +1,8 @@
+[window]
+decorations = "None"
+[font]
+normal = { family = "JetBrainsMono Nerd Font", style = "Regular" }
+size = 11
 [colors.primary]
 background = '#000000'
-foreground = '#abb2bf'
+foreground = '#ffffff'

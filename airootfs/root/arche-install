@@ -1,579 +1,203 @@
 #!/usr/bin/env bash
-################################################################################
-# arche-install - Official Installer for Arche Linux
-# AUTHOR: d3v1ll3n@gmail.com
-################################################################################
+set -euo pipefail
+CHROOT=/mnt
+ROOT_OPTIONS=rw,noatime,nodiratime,logbufs=8,logbsize=256k,allocsize=64M
 
-VERSION='0.1'
-ARCHE_PATH='/usr/share/arche-install'
-
-TRUE=0
-FALSE=1
-SUCCESS=0
-FAILURE=1
-VERBOSE='/dev/null'
-
-WHITE="$(tput setaf 7)"
-CYAN="$(tput setaf 6)"
-CYANB="$(
-  tput bold
-  tput setaf 6
-)"
-RED="$(tput setaf 1)"
-YELLOW="$(tput setaf 3)"
-NC="$(tput sgr0)"
-
-CHROOT='/mnt'
-FIRMWARE_MODE='UNKNOWN'
-ROOT_FS_TYPE='xfs'
-SWAPFILE_SIZE_GIB=''
-
-# Partition path validation start with /dev/
-val_dev_prefix() {
-  local input_path="$1"
-  [ -z "$input_path" ] && { echo ""; return; }
-  case "$input_path" in
-    /dev/*) echo "$input_path" ;;
-    *) echo "/dev/$input_path" ;;
-  esac
+fail() { echo "arche-install: $*" >&2; exit 1; }
+ask() { read -r -p "$2" "$1"; }
+valid_locale() {
+  awk -v locale="$LOCALE" '
+    { sub(/^[[:space:]]*#[[:space:]]*/, ""); if ($1 == locale && $2 == "UTF-8") found=1 }
+    END { exit !found }
+  ' "${1:-/etc/locale.gen}"
 }
-
-unmount_if_mounted() {
-  local device_path="$1"
-  [ -z "$device_path" ] && return 0
-  local mount_points
-  mount_points=$(findmnt -nr -o TARGET --source "$device_path" 2>/dev/null || true)
-  if [ -n "$mount_points" ]; then
-    while read -r mp; do
-      [ -z "$mp" ] && continue
-      umount -q "$mp" 2>/dev/null || true
-    done <<<"$mount_points"
-  fi
+validate_partition() {
+  [[ -b $1 && $(lsblk -dnro TYPE "$1") == part ]] || fail "Not a partition: $1"
+  [[ $(lsblk -dnro PKNAME "$1") == "$(basename "$DISK")" ]] || fail "$1 is not on $DISK"
+  ! findmnt -rn -S "$1" >/dev/null || fail "$1 is mounted; unmount it first"
+  ! swapon --noheadings --raw --show=NAME | grep -Fxq "$1" || fail "$1 is active swap"
 }
-
-# Exit on CTRL + c
-trap "echo -e '\n${RED}Aborted by user${NC}'; exit $FAILURE" 2
-
-# Print formatted output
-wprintf() { printf "%s$1%s" "$WHITE" "$NC" "${@:2}"; }
-warn() { printf "%s[!] WARNING: %s%s\n" "$YELLOW" "$1" "$NC"; }
-err() {
-  printf "%s[-] ERROR: %s%s\n" "$RED" "$1" "$NC"
-  return $FAILURE
+format_partitions() {
+  mkfs.xfs -f -m reflink=1,crc=1 -i size=512 -d agcount=16 "$ROOT_PARTITION"
+  if [[ -n $EFI_PARTITION ]]; then mkfs.fat -F32 "$EFI_PARTITION"; fi
 }
-title() {
-  clear
-  printf "${CYANB}== Arche Installer v$VERSION ==${NC}\n\n"
+write_fstab() {
+  genfstab -U "$CHROOT" | awk '$2 != "/"' > "$CHROOT/etc/fstab"
+  printf 'UUID=%s  /  xfs  %s  0  0\n' "$(blkid -s UUID -o value "$ROOT_PARTITION")" "$ROOT_OPTIONS" >> "$CHROOT/etc/fstab"
 }
-
-# Check root
-check_uid() {
-  [ "$(id -u)" != '0' ] && err 'You must be root to run the Arche installer!' && exit $FAILURE
-}
-
-# Detect firmware mode (UEFI or BIOS)
-detect_firmware() {
-  if [ -d /sys/firmware/efi ]; then
-    FIRMWARE_MODE='UEFI'
+setup_bootloader() {
+  local uuid kernel
+  uuid=$(blkid -s UUID -o value "$ROOT_PARTITION")
+  if [[ -n $EFI_PARTITION ]]; then
+    mountpoint -q "$CHROOT/boot" || fail 'ESP must be mounted at /boot'
+    for kernel in zen lts; do
+      [[ -s $CHROOT/boot/vmlinuz-linux-$kernel && -s $CHROOT/boot/initramfs-linux-$kernel.img ]] || fail "Missing $kernel kernel/initramfs on ESP"
+    done
+    # Paths passed inside arch-chroot are relative to the installed system.
+    arch-chroot "$CHROOT" bootctl --esp-path=/boot install
+    mkdir -p "$CHROOT/boot/loader/entries"
+    printf 'default arche-zen.conf\ntimeout 2\neditor no\n' > "$CHROOT/boot/loader/loader.conf"
+    for kernel in zen lts; do
+      cat > "$CHROOT/boot/loader/entries/arche-$kernel.conf" <<ENTRY
+title Arche Linux ($kernel)
+linux /vmlinuz-linux-$kernel
+initrd /initramfs-linux-$kernel.img
+options root=UUID=$uuid rw rootflags=logbufs=8,logbsize=256k,allocsize=64M
+ENTRY
+    done
   else
-    FIRMWARE_MODE='BIOS'
+    arch-chroot "$CHROOT" pacman -S --needed --noconfirm grub
+    arch-chroot "$CHROOT" grub-install --target=i386-pc "$DISK"
+    # Explicit entries make Zen the default regardless of grub kernel sorting.
+    cat > "$CHROOT/etc/grub.d/09_arche" <<GRUB
+#!/bin/sh
+cat <<'ENTRIES'
+menuentry 'Arche Linux (Zen)' {
+  insmod xfs
+  search --no-floppy --fs-uuid --set=root $uuid
+  linux /boot/vmlinuz-linux-zen root=UUID=$uuid rw rootflags=logbufs=8,logbsize=256k,allocsize=64M
+  initrd /boot/initramfs-linux-zen.img
+}
+menuentry 'Arche Linux (LTS)' {
+  insmod xfs
+  search --no-floppy --fs-uuid --set=root $uuid
+  linux /boot/vmlinuz-linux-lts root=UUID=$uuid rw rootflags=logbufs=8,logbsize=256k,allocsize=64M
+  initrd /boot/initramfs-linux-lts.img
+}
+ENTRIES
+GRUB
+    chmod 755 "$CHROOT/etc/grub.d/09_arche"
+    printf '\nGRUB_DEFAULT=0\nGRUB_TIMEOUT=2\nGRUB_TIMEOUT_STYLE=menu\n' >> "$CHROOT/etc/default/grub"
+    arch-chroot "$CHROOT" grub-mkconfig -o /boot/grub/grub.cfg
   fi
 }
-
-# Basic network check to help users if offline
-check_network() {
-  if ping -c1 -W1 1.1.1.1 >/dev/null 2>&1 || ping -c1 -W1 archelinux.org >/dev/null 2>&1; then
-    return 0
-  else
-    warn "No network connectivity detected. Use 'iwctl' for Wi‑Fi or check Ethernet."
-    return 1
-  fi
-}
-
-# Verify ISO integrity
-verify_iso() {
-  title
-  wprintf "ISO integrity verification is a crucial step to ensure your installation medium is authentic and has not been tampered with.\n\n"
-  wprintf "To proceed, you will need:\n"
-  wprintf "  1. The Arche Linux public GPG key (already imported into your GPG keyring).\n"
-  wprintf "  2. The 'sha256sums.txt' file.\n"
-  wprintf "  3. The 'sha256sums.txt.sig' signature file.\n\n"
-
-  read -r -p "Do you want to perform this verification now? (y/N): " choice
-  case "$choice" in
-  y | Y)
-    wprintf "\nPlease enter the path to the checksums file (sha256sums.txt): "
-    read -r checksum_file
-    wprintf "Please enter the path to the signature file (sha256sums.txt.sig): "
-    read -r sig_file
-
-    if [ ! -f "$checksum_file" ] || [ ! -f "$sig_file" ]; then
-      err "One or both of the specified files could not be found."
-      exit $FAILURE
-    fi
-
-    wprintf "\nVerifying checksum signature...\n"
-    if gpg --verify "$sig_file" "$checksum_file"; then
-      wprintf "\n${CYANB}GPG verification successful! The checksums file is authentic.${NC}\n\n"
-      wprintf "Now, checking the ISO file against the trusted checksums...\n"
-      if sha256sum -c "$checksum_file" --ignore-missing; then
-        wprintf "\n${CYANB}ISO integrity confirmed! The ISO matches the checksum and is ready to install.${NC}\n"
-        sleep 4
-      else
-        err "ISO check FAILED! The ISO is corrupt or does not match the provided checksums."
-        exit $FAILURE
-      fi
-    else
-      err "GPG verification FAILED! The checksums file may be corrupt or tampered with. Do not proceed."
-      exit $FAILURE
-    fi
-    ;;
-  *)
-    warn "You have chosen to skip verification. Proceed with extreme caution."
-    sleep 3
-    ;;
-  esac
-}
-
-# Ask for hostname
-ask_hostname() {
-  while [ -z "$HOST_NAME" ]; do
-    title
-    wprintf '[?] Set your hostname: '
-    read -r HOST_NAME
-  done
-}
-
-# Ask for locale
-ask_locale() {
-  title
-  wprintf '[?] Set locale [en_US.UTF-8]: '
-  read -r LOCALE
-  [ -z "$LOCALE" ] && LOCALE='en_US.UTF-8'
-}
-
-# Ask for keymap (console) and X11 layouts
-ask_keymap() {
-  title
-  wprintf '[?] Set keymap for console (TTY) [us]: '
-  read -r KEYMAP
-  [ -z "$KEYMAP" ] && KEYMAP='us'
-
-  title
-  wprintf '[?] Set X11 keyboard layouts (comma-separated, e.g. us,ru) [us]: '
-  read -r XKB_LAYOUTS
-  [ -z "$XKB_LAYOUTS" ] && XKB_LAYOUTS='us'
-
-  if ! [[ "$XKB_LAYOUTS" =~ ^[a-z,]+$ ]]; then
-    warn "Invalid X11 layout list. Falling back to 'us'."
-    XKB_LAYOUTS='us'
-  fi
-
-  title
-  wprintf '[?] Choose X11 layout switch key:\n'
-  wprintf '  1) Alt+Shift (alt_shift_toggle)\n'
-  wprintf '  2) Ctrl+Shift (ctrl_shift_toggle)\n'
-  wprintf '  3) Caps Lock (caps_toggle)\n'
-  wprintf '  4) Shift+Caps Lock (shift_caps_toggle)\n'
-  wprintf '  5) Alt+Caps Lock (alt_caps_toggle)\n'
-  wprintf '  6) Left Win (lwin_toggle)\n'
-  wprintf '  7) Right Win (rwin_toggle)\n'
-  wprintf '  8) Menu key (menu_toggle)\n'
-  wprintf '  9) Ctrl+Alt (ctrl_alt_toggle)\n'
-  wprintf '  10) Win+Space (win_space_toggle)\n'
-  wprintf '[default: 1]: '
-
-  read -r choice
-  [ -z "$choice" ] && choice=1
-
-  case "$choice" in
-  1) XKB_OPTION='alt_shift_toggle' ;;
-  2) XKB_OPTION='ctrl_shift_toggle' ;;
-  3) XKB_OPTION='caps_toggle' ;;
-  4) XKB_OPTION='shift_caps_toggle' ;;
-  5) XKB_OPTION='alt_caps_toggle' ;;
-  6) XKB_OPTION='lwin_toggle' ;;
-  7) XKB_OPTION='rwin_toggle' ;;
-  8) XKB_OPTION='menu_toggle' ;;
-  9) XKB_OPTION='ctrl_alt_toggle' ;;
-  10) XKB_OPTION='win_space_toggle' ;;
-  *)
-    warn "Invalid selection. Defaulting to Alt+Shift."
-    XKB_OPTION='alt_shift_toggle'
-    ;;
-  esac
-}
-
-# Get available disks
-get_hd_devs() {
-  HD_DEVS="$(lsblk -d -n -o NAME | grep -v loop)"
-  HD_DEVS_INFO="$(lsblk -d -n -o NAME,SIZE,MODEL | grep -v loop)"
-}
-
-# Ask for disk
-ask_hd_dev() {
-  while true; do
-    title
-    wprintf '[+] Available disks:\n'
-    echo "$HD_DEVS_INFO" | awk '{printf "    > %s %s %s\n", $1, $2, substr($0, index($0,$3))}'
-    wprintf '[?] Choose disk (e.g. sda): '
-    read -r HD_DEV
-    if echo "$HD_DEVS" | grep -wq "$HD_DEV"; then
-      HD_DEV="/dev/$HD_DEV"
-      break
-    fi
-  done
-}
-
-# Partitioning
-partition_disk() {
-  title
-  warn "Partition your disk with cfdisk. You need at least EFI (if UEFI), root, and optionally swap."
-  sleep 2
-  cfdisk "$HD_DEV"
-}
-
-# Get partitions
-get_partitions() {
-  PARTITIONS=$(lsblk -ln -o NAME "$HD_DEV" | grep -vx "$(basename "$HD_DEV")" | awk '{print "/dev/"$1}')
-}
-
-# Ask for partitions
-ask_partitions() {
-  get_partitions
-  title
-  wprintf '[+] Detected partitions:\n'
-  lsblk "$HD_DEV"
-  # EFI partition (required on UEFI, optional on BIOS)
-  while true; do
-    wprintf '[?] EFI partition (empty if BIOS): '
-    read -r BOOT_PART
-    BOOT_PART="$(val_dev_prefix "$BOOT_PART")"
-    if [ "$FIRMWARE_MODE" = 'UEFI' ]; then
-      if [ -b "$BOOT_PART" ]; then
-        break
-      else
-        err "UEFI mode detected, EFI partition is required."
-      fi
-    else
-      if [ -z "$BOOT_PART" ] || [ -b "$BOOT_PART" ]; then
-        break
-      else
-        err "Invalid EFI partition: $BOOT_PART"
-      fi
-    fi
-  done
-
-  # Root filesystem type
-  while true; do
-    wprintf '[?] Root filesystem [xfs|ext4|btrfs|f2fs|ext3|ext2] (default: xfs): '
-    read -r ROOT_FS_TYPE
-    [ -z "$ROOT_FS_TYPE" ] && ROOT_FS_TYPE='xfs'
-    case "$ROOT_FS_TYPE" in
-      xfs|ext4|btrfs|f2fs|ext3|ext2) break ;;
-      *) warn "Unsupported fs type. Choose one of: xfs, ext4, btrfs, f2fs, ext3, ext2." ;;
+parse_options() {
+  UNATTENDED=false
+  LOCKED_ACCOUNTS=false
+  DISK='' HOST_NAME=archelinux NORMAL_USER='' LOCALE=en_US.UTF-8 ERASE_DISK=''
+  while (( $# )); do
+    case $1 in
+      --unattended) UNATTENDED=true; shift ;;
+      --locked-accounts) LOCKED_ACCOUNTS=true; shift ;;
+      --disk|--hostname|--username|--locale|--erase-disk)
+        (( $# >= 2 )) || fail "Missing value for $1"
+        case $1 in
+          --disk) DISK=$2 ;;
+          --hostname) HOST_NAME=$2 ;;
+          --username) NORMAL_USER=$2 ;;
+          --locale) LOCALE=$2 ;;
+          --erase-disk) ERASE_DISK=$2 ;;
+        esac
+        shift 2 ;;
+      *) fail "Unknown option: $1" ;;
     esac
   done
-
-  # Root partition (required)
-  while true; do
-    wprintf '[?] Root partition: '
-    read -r ROOT_PART
-    ROOT_PART="$(val_dev_prefix "$ROOT_PART")"
-    if [ -b "$ROOT_PART" ]; then
-      break
-    else
-      err "Invalid root partition: $ROOT_PART"
-    fi
-  done
-
-  # Swap partition (optional)
-  while true; do
-    wprintf '[?] Swap partition (empty for none): '
-    read -r SWAP_PART
-    [ -z "$SWAP_PART" ] && { SWAP_PART='none'; break; }
-    SWAP_PART="$(val_dev_prefix "$SWAP_PART")"
-    if [ -b "$SWAP_PART" ]; then
-      break
-    else
-      err "Invalid swap partition: $SWAP_PART"
-    fi
-  done
-}
-
-# Ask for a swapfile when no swap partition was chosen
-ask_swapfile() {
-  [ "$SWAP_PART" != "none" ] && return 0
-  title
-  wprintf '[?] No swap partition selected. Create a swapfile instead? Size in GiB (empty for none): '
-  read -r SWAPFILE_SIZE_GIB
-  if [ -n "$SWAPFILE_SIZE_GIB" ] && ! [[ "$SWAPFILE_SIZE_GIB" =~ ^[0-9]+$ ]]; then
-    warn "Invalid size. Skipping swapfile."
-    SWAPFILE_SIZE_GIB=''
+  if [[ $UNATTENDED == true ]]; then
+    [[ $LOCKED_ACCOUNTS == true ]] || fail 'Unattended mode requires --locked-accounts'
+    [[ -n $DISK && $ERASE_DISK == "$DISK" ]] || fail 'Repeat the disk path with --erase-disk'
+    [[ -n $NORMAL_USER ]] || fail '--username is required'
+    [[ -d /sys/firmware/efi ]] || fail 'Unattended mode currently requires UEFI'
+    [[ $HOST_NAME =~ ^[a-zA-Z0-9][a-zA-Z0-9-]{0,62}$ ]] || fail 'Invalid hostname'
+    [[ $NORMAL_USER =~ ^[a-z_][a-z0-9_-]*$ && $NORMAL_USER != root ]] || fail 'Invalid username'
+    valid_locale || fail 'Invalid locale'
   fi
 }
-
-# Create and enable the swapfile inside the freshly installed target
-create_swapfile_in_chroot() {
-  [ -z "$SWAPFILE_SIZE_GIB" ] && return 0
-  if [ "$ROOT_FS_TYPE" = 'btrfs' ]; then
-    warn "Swapfiles on btrfs require special handling; skipping swapfile creation."
-    return 0
-  fi
-  wprintf '[+] Creating %sGiB swapfile...\n' "$SWAPFILE_SIZE_GIB"
-  chroot $CHROOT fallocate -l "${SWAPFILE_SIZE_GIB}G" /swapfile || {
-    err "Failed to allocate swapfile"
-    return $FAILURE
-  }
-  chroot $CHROOT chmod 600 /swapfile
-  chroot $CHROOT mkswap /swapfile || {
-    err "Failed to format swapfile"
-    return $FAILURE
-  }
-  echo '/swapfile none swap defaults 0 0' >>"$CHROOT/etc/fstab"
+partition_unattended() {
+  local device
+  while read -r device; do
+    ! findmnt -rn -S "$device" >/dev/null || fail "$device is mounted"
+    ! swapon --noheadings --raw --show=NAME | grep -Fxq "$device" || fail "$device is swap"
+  done < <(lsblk -nrpo NAME "$DISK")
+  (( $(blockdev --getsize64 "$DISK") >= 19327352832 )) || fail 'Disk needs at least 18 GiB'
+  printf 'label: gpt\nsize=1GiB,type=U\ntype=L\n' | sfdisk --wipe always "$DISK"
+  udevadm settle
+  EFI_PARTITION=$(lsblk -nrpo NAME,PARTN "$DISK" | awk '$2 == 1 {print $1}')
+  ROOT_PARTITION=$(lsblk -nrpo NAME,PARTN "$DISK" | awk '$2 == 2 {print $1}')
 }
-
-# Format partitions
-format_partitions() {
-  title
-  wprintf '[+] Formatting partitions...\n'
-  [ -n "$BOOT_PART" ] && {
-    wprintf '  > Formatting BOOT\n'
-    unmount_if_mounted "$BOOT_PART"
-    wipefs -fa "$BOOT_PART" >/dev/null 2>&1 || true
-    mkfs.fat -F32 "$BOOT_PART" || {
-      err "Failed to format EFI partition"
-      exit $FAILURE
-    }
-  }
-  wprintf '  > Formatting ROOT\n'
-  unmount_if_mounted "$ROOT_PART"
-  wipefs -fa "$ROOT_PART" >/dev/null 2>&1 || true
-  case "$ROOT_FS_TYPE" in
-    ext4)
-      mkfs.ext4 -F "$ROOT_PART" || { err "Failed to format root (ext4)"; exit $FAILURE; }
-      ;;
-    ext3)
-      mkfs.ext3 -F "$ROOT_PART" || { err "Failed to format root (ext3)"; exit $FAILURE; }
-      ;;
-    ext2)
-      mkfs.ext2 -F "$ROOT_PART" || { err "Failed to format root (ext2)"; exit $FAILURE; }
-      ;;
-    btrfs)
-      mkfs.btrfs -f "$ROOT_PART" || { err "Failed to format root (btrfs)"; exit $FAILURE; }
-      ;;
-    xfs)
-      mkfs.xfs -f "$ROOT_PART" || { err "Failed to format root (xfs)"; exit $FAILURE; }
-      ;;
-    f2fs)
-      mkfs.f2fs -f "$ROOT_PART" || { err "Failed to format root (f2fs)"; exit $FAILURE; }
-      ;;
-    *)
-      err "Unsupported filesystem type: $ROOT_FS_TYPE"
-      exit $FAILURE
-      ;;
-  esac
-  [ "$SWAP_PART" != "none" ] && {
-    wprintf '  > Formatting SWAP\n'
-    unmount_if_mounted "$SWAP_PART"
-    wipefs -fa "$SWAP_PART" >/dev/null 2>&1 || true
-    mkswap "$SWAP_PART" || {
-      err "Failed to format swap partition"
-      exit $FAILURE
-    }
-  }
-}
-
-# Mount partitions
-mount_partitions() {
-  mount "$ROOT_PART" $CHROOT || {
-    err "Failed to mount root partition"
-    exit $FAILURE
-  }
-  [ -n "$BOOT_PART" ] && { mkdir -p "$CHROOT/boot" && mount "$BOOT_PART" "$CHROOT/boot" || {
-    err "Failed to mount EFI partition"
-    exit $FAILURE
-  }; }
-  [ "$SWAP_PART" != "none" ] && { swapon "$SWAP_PART" || {
-    err "Failed to enable swap"
-    exit $FAILURE
-  }; }
-}
-
-# Install system
-install_system() {
-  title
-  wprintf '[+] Installing system packages...\n'
-  [ -f /root/package-list.x86_64 ] || {
-    err "Package list /root/package-list.x86_64 not found"
-    exit $FAILURE
-  }
-  pacstrap $CHROOT - </root/package-list.x86_64 || {
-    err "Failed to install system packages"
-    exit $FAILURE
-  }
-  wprintf '[+] Installing local packages...\n'
-  mkdir -p "$CHROOT/root/local_packages"
-  cp /root/local_packages/oh-my-zsh-git-*.pkg.tar.zst "$CHROOT/root/local_packages/" || {
-    err "Failed to stage oh-my-zsh package into target"
-    exit $FAILURE
-  }
-  chroot $CHROOT pacman -U --noconfirm /root/local_packages/oh-my-zsh-git-*.pkg.tar.zst || {
-    err "Failed to install oh-my-zsh"
-    exit $FAILURE
-  }
-}
-
-# Fstab
-gen_fstab() {
-  genfstab -U $CHROOT >>"$CHROOT/etc/fstab"
-}
-
-# Locale, keymap, hostname
-setup_system() {
-  grep -q "^$LOCALE" "$CHROOT/etc/locale.gen" || {
-    err "Invalid locale: $LOCALE"
-    exit $FAILURE
-  }
-  sed -i "s/^#${LOCALE}/${LOCALE}/" "$CHROOT/etc/locale.gen"
-  echo "LANG=$LOCALE" >"$CHROOT/etc/locale.conf"
-  echo "KEYMAP=$KEYMAP" >"$CHROOT/etc/vconsole.conf"
-  echo "$HOST_NAME" >"$CHROOT/etc/hostname"
-  chroot $CHROOT locale-gen || {
-    err "Failed to generate locale"
-    exit $FAILURE
-  }
-  # Branding
-  cat >"$CHROOT/etc/os-release" <<'EOF'
-NAME="Arche Linux"
-PRETTY_NAME="Arche Linux"
-ID=arche
-ID_LIKE=arch
-BUILD_ID=rolling
-ANSI_COLOR="38;2;23;147;209"
-HOME_URL="https://archelinux.org"
-DOCUMENTATION_URL="https://archelinux.org/docs"
-SUPPORT_URL="https://archelinux.org/community"
-BUG_REPORT_URL="https://archelinux.org/issues"
-EOF
-  echo "Welcome to Arche Linux \n \l" >"$CHROOT/etc/issue"
-  cat >"$CHROOT/etc/motd" <<'EOF'
-Arche Linux — minimal, transparent, yours.
-
-Run `arche-install` to start the guided installer.
-EOF
-  mkdir -p "$CHROOT/etc/X11/xorg.conf.d"
-  cat >"$CHROOT/etc/X11/xorg.conf.d/00-keyboard.conf" <<EOF
-# Written by arche-install
-Section "InputClass"
-    Identifier "system-keyboard"
-    MatchIsKeyboard "on"
-    Option "XkbLayout" "$XKB_LAYOUTS"
-    Option "XkbOptions" "grp:$XKB_OPTION"
-EndSection
-EOF
-
-  cat >"$CHROOT/etc/profile.d/arche-firstboot.sh" <<'EOF'
-if [ ! -f /etc/pacman.d/gnupg/pubring.kbx ]; then
-  echo "[arche-linux] Initializing pacman keyring..."
-  pacman-key --init && pacman-key --populate archlinux
-  echo "[arche-linux] Pacman keyring initialized."
-  rm -- "$0"
-fi
-EOF
-  chmod +x "$CHROOT/etc/profile.d/arche-firstboot.sh"
-  install -Dm755 /root/arche-install "$CHROOT/usr/bin/arche-install"
-}
-
-# Timezone
-setup_timezone() {
-  ln -sf /usr/share/zoneinfo/UTC "$CHROOT/etc/localtime"
-  chroot $CHROOT hwclock --systohc
-}
-
-# User
-setup_user() {
-  title
-  wprintf '[?] New username: '
-  read -r NORMAL_USER
-  chroot $CHROOT useradd -m -G wheel,audio,video,network -s /bin/zsh "$NORMAL_USER"
-  wprintf "[+] Set password for $NORMAL_USER\n"
-  chroot $CHROOT passwd "$NORMAL_USER"
-  wprintf "[+] Set password for root\n"
-  chroot $CHROOT passwd
-  chroot $CHROOT chsh -s /bin/zsh root
-  sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' "$CHROOT/etc/sudoers"
-}
-
-# Network
-setup_network() {
-  chroot $CHROOT systemctl enable iwd systemd-networkd systemd-resolved
-}
-
-# Bluetooth
-setup_bluetooth() {
-  chroot $CHROOT systemctl enable bluetooth
-}
-
-# Bootloader
-setup_bootloader() {
-  if [ "$FIRMWARE_MODE" = 'UEFI' ]; then
-    chroot $CHROOT pacman -S --noconfirm systemd-boot
-    chroot $CHROOT bootctl install || {
-      err "Failed to install systemd-boot"
-      exit $FAILURE
-    }
-    UUID=$(blkid -s UUID -o value "$ROOT_PART")
-    UCODE_INITRD=''
-    [ -f "$CHROOT/boot/intel-ucode.img" ] && UCODE_INITRD="initrd  /intel-ucode.img"
-    [ -f "$CHROOT/boot/amd-ucode.img" ] && UCODE_INITRD="initrd  /amd-ucode.img"
-    cat >"$CHROOT/boot/loader/entries/arche.conf" <<EOF
-title   Arche Linux
-linux   /vmlinuz-linux-hardened
-$UCODE_INITRD
-initrd  /initramfs-linux-hardened.img
-options root=UUID=$UUID rw slab_nomerge pti=on
-EOF
-  else
-    chroot $CHROOT pacman -S --noconfirm grub
-    chroot $CHROOT grub-install --target=i386-pc "$HD_DEV" || {
-      err "Failed to install GRUB"
-      exit $FAILURE
-    }
-    sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT="/&slab_nomerge pti=on /' "$CHROOT/etc/default/grub"
-    chroot $CHROOT grub-mkconfig -o /boot/grub/grub.cfg || {
-      err "Failed to configure GRUB"
-      exit $FAILURE
-    }
-  fi
-}
-
-# Main
 main() {
-  check_uid
-  detect_firmware
-  check_network || true
-  verify_iso
-  ask_locale
-  ask_keymap
-  ask_hostname
-  get_hd_devs
-  ask_hd_dev
-  partition_disk
-  ask_partitions
+  parse_options "$@"
+  (( EUID == 0 )) || fail 'Run as root from the Arche live ISO.'
+  [[ -f /usr/share/arche/repo/arche.db ]] || fail 'Missing bundled package repository; run scripts/build-repo.sh before building the ISO.'
+  for repository in core extra; do
+    [[ -n $(pacman-conf --repo "$repository" Server) ]] || fail "No servers configured for $repository; enable a mirror before installing."
+  done
+  # pacstrap verifies its initial transaction using the live host's keyring.
+  # mkarchiso removes build-host key material; initialize fresh live trust.
+  pacman-key --init
+  pacman-key --populate archlinux
+  echo 'Arche Linux: XFS, Zen + LTS, ZRAM, terminal and agent tools.'
+  lsblk -o NAME,SIZE,TYPE,FSTYPE,MOUNTPOINTS
+  if [[ $UNATTENDED == false ]]; then ask DISK 'Target disk (absolute /dev/ path): '; fi
+  [[ -b $DISK && $(lsblk -dnro TYPE "$DISK") == disk ]] || fail 'Invalid disk'
+  EFI_PARTITION=
+  if [[ $UNATTENDED == true ]]; then
+    partition_unattended
+  else
+    echo 'Create a root partition (at least 16 GiB). UEFI: add a 1 GiB EFI system partition.'
+    echo 'BIOS with GPT: also create a 1 MiB BIOS boot partition.'
+    cfdisk "$DISK"
+    udevadm settle
+    ask ROOT_PARTITION 'Root partition (absolute /dev/ path, WILL BE ERASED): '
+    if [[ -d /sys/firmware/efi ]]; then
+      ask EFI_PARTITION 'EFI system partition (absolute /dev/ path, WILL BE ERASED): '
+    fi
+  fi
+  validate_partition "$ROOT_PARTITION"
+  (( $(blockdev --getsize64 "$ROOT_PARTITION") >= 17179869184 )) || fail 'Root needs at least 16 GiB'
+  if [[ -n $EFI_PARTITION ]]; then
+    validate_partition "$EFI_PARTITION"
+    [[ $(readlink -f "$EFI_PARTITION") != "$(readlink -f "$ROOT_PARTITION")" ]] || fail 'Root and EFI must differ'
+    (( $(blockdev --getsize64 "$EFI_PARTITION") >= 1073741824 )) || fail 'EFI partition needs at least 1 GiB for both kernels'
+  fi
+  if [[ $UNATTENDED == false ]]; then ask HOST_NAME 'Hostname: '; fi
+  [[ $HOST_NAME =~ ^[a-zA-Z0-9][a-zA-Z0-9-]{0,62}$ ]] || fail 'Invalid hostname'
+  if [[ $UNATTENDED == false ]]; then ask NORMAL_USER 'Username: '; fi
+  [[ $NORMAL_USER =~ ^[a-z_][a-z0-9_-]*$ && $NORMAL_USER != root ]] || fail 'Invalid username'
+  if [[ $UNATTENDED == false ]]; then ask LOCALE 'Locale [en_US.UTF-8]: '; fi
+  LOCALE=${LOCALE:-en_US.UTF-8}
+  valid_locale || fail 'Choose a UTF-8 locale from /etc/locale.gen'
+  if [[ $UNATTENDED == false ]]; then
+    ask CONFIRM "Type ERASE to format $ROOT_PARTITION ${EFI_PARTITION} and install: "
+    [[ $CONFIRM == ERASE ]] || fail 'Cancelled'
+  fi
+  ! mountpoint -q "$CHROOT" || fail "$CHROOT is already mounted"
   format_partitions
-  mount_partitions
-  ask_swapfile
-  install_system
-  gen_fstab
-  create_swapfile_in_chroot
-  setup_system
-  setup_timezone
-  setup_user
-  setup_network
-  setup_bluetooth
+  mkdir -p "$CHROOT"
+  mount -t xfs -o "$ROOT_OPTIONS" "$ROOT_PARTITION" "$CHROOT"
+  if [[ -n $EFI_PARTITION ]]; then
+    mkdir -p "$CHROOT/boot"
+    mount "$EFI_PARTITION" "$CHROOT/boot"
+  fi
+  # The local repository is present inside the ISO and usable by pacstrap.
+  pacstrap -K "$CHROOT" arche-base arche-tui-stack arche-agentic-core
+  write_fstab
+  cp -a "$CHROOT/usr/share/arche/skel/." "$CHROOT/etc/skel/"
+  mkdir -p "$CHROOT/usr/share/arche/repo"
+  cp -a /usr/share/arche/repo/. "$CHROOT/usr/share/arche/repo/"
+  cp /etc/pacman.conf "$CHROOT/etc/pacman.conf"
+  install -Dm644 /etc/os-release "$CHROOT/etc/os-release"
+  printf 'Arche Linux \n' > "$CHROOT/etc/issue"
+  printf '%s\n' "$HOST_NAME" > "$CHROOT/etc/hostname"
+  printf 'LANG=%s\n' "$LOCALE" > "$CHROOT/etc/locale.conf"
+  printf '%s UTF-8\n' "$LOCALE" >> "$CHROOT/etc/locale.gen"
+  arch-chroot "$CHROOT" locale-gen
+  ln -sf /usr/share/zoneinfo/UTC "$CHROOT/etc/localtime"
+  arch-chroot "$CHROOT" hwclock --systohc
+  # pacstrap uses normal kernel presets, never the live archiso initramfs config.
+  arch-chroot "$CHROOT" mkinitcpio -P
+  arch-chroot "$CHROOT" useradd -m -U -k /usr/share/arche/skel -G wheel -s /bin/zsh "$NORMAL_USER"
+  if [[ $LOCKED_ACCOUNTS == false ]]; then
+    arch-chroot "$CHROOT" passwd "$NORMAL_USER"
+    arch-chroot "$CHROOT" passwd root
+  else
+    arch-chroot "$CHROOT" passwd -l "$NORMAL_USER"
+    arch-chroot "$CHROOT" passwd -l root
+  fi
+  install -d -m750 "$CHROOT/etc/sudoers.d"
+  printf '%%wheel ALL=(ALL:ALL) ALL\n' > "$CHROOT/etc/sudoers.d/10-wheel"
+  chmod 440 "$CHROOT/etc/sudoers.d/10-wheel"
+  arch-chroot "$CHROOT" systemctl enable NetworkManager.service paccache.timer
   setup_bootloader
-  echo -e "\n${CYANB}Arche installation complete! Time to split your panes and :vsp your world!${NC}"
+  echo 'Installation complete. Unmount /mnt recursively and reboot; inference services are opt-in.'
 }
-
-main "$@"
+if [[ ${BASH_SOURCE[0]} == "$0" ]]; then main "$@"; fi

@@ -1,0 +1,21 @@
+# Maintainer: Arche Linux maintainers
+pkgname=arche-base
+pkgver=2.0.0
+pkgrel=1
+pkgdesc='Base system, tuned XFS and dual kernels'
+arch=('any')
+url='https://github.com/archelinux/archelinux'
+license=('GPL-3.0-only')
+depends=('base' 'base-devel' 'xfsprogs' 'zram-generator' 'pacman-contrib' 'git' 'curl' 'wget' 'polkit' 'openssh' 'linux-zen' 'linux-zen-headers' 'linux-lts' 'linux-lts-headers' 'linux-firmware' 'networkmanager' 'systemd' 'mkinitcpio' 'dosfstools' 'sudo' 'intel-ucode' 'amd-ucode')
+provides=('paccache-hook')
+conflicts=('paccache-hook')
+source=('config-0' 'config-1' 'config-2' 'config-3' 'config-4')
+sha256sums=('da73450ac9f472caaea7c2d051085b6919ed352abebdad3a9fb18fd8ed714506' '70cd6669944b275679c2d18a08191125dbbcb236a50ef30cfa1dd0a4ab28fe62' 'b6711f260e4aa5efa3e2612196d179ad862141c1074b2d9acf0a2975ff5137ad' 'cd677dd10f7f407742c72bef1a0edb941dcb0a6bf9846d3121f65a638c575c4e' '8870e770b217595ce855903045047ed9c1960269182c3466b9a467b3152d857a')
+backup=('etc/systemd/zram-generator.conf' 'etc/sysctl.d/99-arche-perf.conf' 'etc/systemd/system/paccache.service.d/keep-three.conf' 'etc/pacman.d/hooks/99-arche-paccache.hook')
+package() {
+  install -Dm644 "$srcdir/config-0" "$pkgdir/etc/systemd/zram-generator.conf"
+  install -Dm644 "$srcdir/config-1" "$pkgdir/etc/sysctl.d/99-arche-perf.conf"
+  install -Dm644 "$srcdir/config-2" "$pkgdir/etc/systemd/system/paccache.service.d/keep-three.conf"
+  install -Dm644 "$srcdir/config-3" "$pkgdir/etc/pacman.d/hooks/99-arche-paccache.hook"
+  install -Dm755 "$srcdir/config-4" "$pkgdir/usr/bin/arche-rollback"
+}

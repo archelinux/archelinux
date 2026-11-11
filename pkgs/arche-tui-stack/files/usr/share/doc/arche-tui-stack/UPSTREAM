@@ -1,0 +1,7 @@
+Litho Dark visual design and Waybar CSS adapted from okubax/dotfiles.
+Source: https://github.com/okubax/dotfiles
+Revision: 59beb07ae7167a9b4cde6fb357b1a7976eabf6ea
+License: GPL-3.0 (upstream LICENSE retained alongside this notice).
+Modified by Arche Linux, 2026-11-10: relocatable palette, packaged commands,
+MPRIS/WirePlumber, borderless windows, Fuzzel, and Arche logo wallpaper.
+No upstream installer, credentials, cloud clients, or personal services included.

@@ -1,0 +1,15 @@
+# Maintainer: Arche Linux maintainers
+pkgname=arche-cuda
+pkgver=2.0.0
+pkgrel=1
+pkgdesc='Optional NVIDIA open drivers and CUDA toolkit'
+arch=('any')
+url='https://github.com/archelinux/archelinux'
+license=('GPL-3.0-only')
+depends=('arche-base' 'nvidia-open-dkms' 'nvidia-utils' 'cuda' 'cudnn')
+source=()
+sha256sums=()
+backup=()
+package() {
+  :
+}

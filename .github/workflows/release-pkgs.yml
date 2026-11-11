@@ -1,0 +1,61 @@
+name: Release signed pacman repository
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:base-devel
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash scripts/build-repo.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: packages
+          path: pkgs/local-repo/*.pkg.tar.zst
+          if-no-files-found: error
+  sign-and-publish:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: package-release
+    permissions:
+      contents: write
+    container:
+      image: archlinux:base-devel
+    steps:
+      - run: pacman -Syu --needed --noconfirm gnupg github-cli
+      - uses: actions/download-artifact@v4
+        with:
+          name: packages
+          path: repo
+      - name: Sign packages and database with persistent release key
+        env:
+          ARCHE_SIGNING_KEY: ${{ secrets.ARCHE_SIGNING_KEY }}
+          ARCHE_SIGNING_FINGERPRINT: ${{ secrets.ARCHE_SIGNING_FINGERPRINT }}
+          ARCHE_SIGNING_PASSPHRASE: ${{ secrets.ARCHE_SIGNING_PASSPHRASE }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          export GNUPGHOME=$(mktemp -d)
+          trap 'rm -rf "$GNUPGHOME"' EXIT
+          printf '%s' "$ARCHE_SIGNING_KEY" | gpg --batch --import
+          for package in repo/*.pkg.tar.zst; do
+            printf '%s' "$ARCHE_SIGNING_PASSPHRASE" | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 --local-user "$ARCHE_SIGNING_FINGERPRINT" --detach-sign "$package"
+          done
+          repo-add --include-sigs repo/arche.db.tar.gz repo/*.pkg.tar.zst
+          for database in repo/arche.db.tar.gz repo/arche.files.tar.gz; do
+            printf '%s' "$ARCHE_SIGNING_PASSPHRASE" | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 --local-user "$ARCHE_SIGNING_FINGERPRINT" --detach-sign "$database"
+          done
+          # GitHub Release assets must be regular files with pacman's requested names.
+          cp --remove-destination repo/arche.db.tar.gz repo/arche.db
+          cp repo/arche.db.tar.gz.sig repo/arche.db.sig
+          cp --remove-destination repo/arche.files.tar.gz repo/arche.files
+          cp repo/arche.files.tar.gz.sig repo/arche.files.sig
+          gpg --armor --export "$ARCHE_SIGNING_FINGERPRINT" > repo/arche-signing-key.asc
+      - name: Publish immutable repository release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: gh release create "pkgs-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" repo/* --title "Arche packages ${GITHUB_RUN_ID}" --notes 'Signed Arche Linux binary repository. Use this tag in your pacman Server URL.'

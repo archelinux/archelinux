@@ -1,0 +1,12 @@
+[Unit]
+Description=Arche local inference: llama-server
+ConditionPathIsExecutable=/usr/bin/llama-server
+
+[Service]
+EnvironmentFile=%h/.config/arche/llama-server.env
+ExecStart=/usr/bin/llama-server --model ${LLAMA_MODEL} --host 127.0.0.1 --port 8080
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

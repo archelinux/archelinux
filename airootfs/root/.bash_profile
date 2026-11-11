@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
-if [[ -z "$DISPLAY" && $(tty) == /dev/tty1 ]]; then
-  arche-install || /usr/bin/arche-install || /root/arche-install
+if [[ -z ${DISPLAY:-} && $(tty) == /dev/tty1 ]]; then
+  /root/arche-install
 fi

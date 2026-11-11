@@ -1,0 +1,51 @@
+# Maintainer: Arche Linux maintainers
+pkgname=arche-tui-stack
+pkgver=2.0.0
+pkgrel=9
+pkgdesc='Terminal development, Neovim and borderless Litho Dark Sway desktop'
+arch=('any')
+url='https://github.com/archelinux/archelinux'
+license=('GPL-3.0-only')
+depends=('tmux' 'alacritty' 'foot' 'fzf' 'zoxide' 'direnv' 'ripgrep' 'fd' 'bat' 'git-delta' 'lazygit' 'jq' 'yq' 'eza' 'fish' 'zsh' 'neovim' 'lua-language-server' 'rust-analyzer' 'basedpyright' 'gopls' 'tree-sitter-lua' 'tree-sitter-c' 'tree-sitter-vim' 'tree-sitter-vimdoc' 'tree-sitter-query' 'tree-sitter-python' 'tree-sitter-rust' 'wl-clipboard' 'xclip' 'sway' 'swaybg' 'librsvg' 'swayidle' 'swaylock' 'xorg-xwayland' 'waybar' 'fuzzel' 'mako' 'ttf-jetbrains-mono-nerd' 'ttf-nerd-fonts-symbols-mono' 'noto-fonts' 'noto-fonts-emoji' 'brightnessctl' 'wireplumber' 'playerctl' 'pipewire' 'pipewire-pulse' 'pipewire-alsa')
+source=('arche-logo.svg' 'foot.ini' 'arche-wallpaper.svg' 'desktop-11' 'desktop-10' 'desktop-9' 'desktop-8' 'desktop-7' 'desktop-6' 'desktop-5' 'desktop-4' 'desktop-3' 'desktop-2' 'desktop-1' 'desktop-0' 'rust-highlights.scm' 'python-highlights.scm' 'config-0' 'config-1' 'config-2' 'config-3' 'config-4' 'config-5')
+sha256sums=('c068d88bea628c5b87518794089388ea045ceee9b4d6f256fb5b69f9ebb250a2' '8ce975549101c8d71f651816b504bcd4733145cf68cc026fae4e4efaab0fd9b6' '67772267f91ca1ae41d08d51b8f3d2308e64a3aaa3f2dbad0bbe5e3b7509127f' '3e19f9bf4aed7ace0e966be4c36dde8f0004ac011bb18de76183b282568f006c' '3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986' '90152162887b6cf0cb08eb46671c50fb5dee290a57cb93462c13b841e0debfee' 'fe75d6bdeefc32d9139d06aee0833d72b792e903e33e65d1e5cadf702cb5fbb1' '837cd809a268f479b00a855941bd37fd33e5837979d4033577b0dd556f79f586' '2c7df2fe15e0611be551058818237fd5802feec4f0a5f89f57c389b0d05e1a5a' '7f6005472d42701cb2862cf490269e9145e40b83fb74181da7e7d9fe7324857e' 'f17398dd243eb668c0f273032c9c71e54bdaf75764d19373f08e9f4a2ccf7cbb' 'd0fc4d283886c5416fc0594cb9659aea507d1d155c17a60f9c79c982236b6419' '29bb9c3b31069fc26dedf128a866d6258cfe020daf5c7888c539864007b9feea' 'cebe1718368e8a30e422ff3a65225d5279d93811a6659fdd7e3250a341d3da01' '9b132c3c1e444abb2220615c94a19020e5d099907a74b4e89c1066422509949a' '96826d06f0721679f6507b958c7caae521cb07f1d865762155baf15167c72d66' '4ab00316edf9fc903ed794d293841891364973e52065513fdb74a9dc48e93a4c' '29b2b62be0d612fbe329d866bc943ad883dca2eab0fb3a821af0f46fd9470ccf' 'c920b4889a04214f14d20116599d3414f289c3ad8fa7ef8734cf5d77a6c8ae86' 'a081d72dc7fd938acedde7a094291326e94c6849fc43af2446078c6023100995' 'f1f2c1231c28af2d7892388322c6f6a6e8fa2775524c2cceb43cacaaf1ae8f87' '3ccff186b229a5bc1cfa9415a765b89613d046ff0bc7a706e2edba4575263250' '0b34dae925eb3b047b0abdc7c1ad0f895aab6857683beaa4f0b04eb19fb867cf')
+backup=('etc/tmux.conf')
+build() {
+  for shell in bash zsh fish; do
+    zoxide init --cmd cd "$shell" > "$srcdir/$shell.hooks"
+    direnv hook "$shell" >> "$srcdir/$shell.hooks"
+  done
+}
+package() {
+  install -Dm644 "$srcdir/arche-logo.svg" "$pkgdir/usr/share/arche/logo.svg"
+  install -Dm644 "$srcdir/foot.ini" "$pkgdir/usr/share/arche/skel/.config/foot/foot.ini"
+  install -Dm644 "$srcdir/arche-wallpaper.svg" "$pkgdir/usr/share/arche/wallpaper.svg"
+  install -Dm644 "$srcdir/desktop-11" "$pkgdir/usr/share/doc/arche-tui-stack/UPSTREAM"
+  install -Dm644 "$srcdir/desktop-10" "$pkgdir/usr/share/doc/arche-tui-stack/LICENSE.okubax"
+  install -Dm644 "$srcdir/desktop-9" "$pkgdir/usr/share/arche/start-sway.sh"
+  install -Dm644 "$srcdir/desktop-8" "$pkgdir/usr/share/arche/skel/.zprofile"
+  install -Dm644 "$srcdir/desktop-7" "$pkgdir/usr/share/arche/skel/.config/waybar/style.css"
+  install -Dm644 "$srcdir/desktop-6" "$pkgdir/usr/share/arche/skel/.config/waybar/litho-dark.css"
+  install -Dm644 "$srcdir/desktop-5" "$pkgdir/usr/share/arche/skel/.config/waybar/config.jsonc"
+  install -Dm644 "$srcdir/desktop-4" "$pkgdir/usr/share/arche/skel/.config/sway/config"
+  install -Dm644 "$srcdir/desktop-3" "$pkgdir/usr/share/arche/skel/.config/mako/config"
+  install -Dm644 "$srcdir/desktop-2" "$pkgdir/usr/share/arche/skel/.config/fuzzel/fuzzel.ini"
+  install -Dm644 "$srcdir/desktop-1" "$pkgdir/usr/share/arche/skel/.config/fish/conf.d/arche-sway.fish"
+  install -Dm644 "$srcdir/desktop-0" "$pkgdir/usr/share/arche/skel/.bash_profile"
+  install -d "$pkgdir/usr/share/nvim/site/parser"
+  for lang in python rust; do
+    ln -s "/usr/lib/tree_sitter/$lang.so" "$pkgdir/usr/share/nvim/site/parser/$lang.so"
+    install -Dm644 "$srcdir/$lang-highlights.scm" "$pkgdir/usr/share/nvim/site/queries/$lang/highlights.scm"
+  done
+  install -Dm644 "$srcdir/config-0" "$pkgdir/etc/tmux.conf"
+  install -Dm644 "$srcdir/config-1" "$pkgdir/usr/share/arche/skel/.bashrc"
+  install -Dm644 "$srcdir/config-2" "$pkgdir/usr/share/arche/skel/.zshrc"
+  install -Dm644 "$srcdir/config-3" "$pkgdir/usr/share/arche/skel/.config/fish/config.fish"
+  install -Dm644 "$srcdir/config-4" "$pkgdir/usr/share/arche/skel/.config/nvim/init.lua"
+  install -Dm644 "$srcdir/config-5" "$pkgdir/usr/share/arche/skel/.config/alacritty/alacritty.toml"
+  for shell in bash zsh; do
+    install -Dm644 "$srcdir/$shell.hooks" "$pkgdir/usr/share/arche/shell/$shell.sh"
+  done
+  install -Dm644 "$srcdir/fish.hooks" "$pkgdir/usr/share/arche/shell/fish.fish"
+  zsh -fc 'zcompile "$1"' -- "$pkgdir/usr/share/arche/shell/zsh.sh"
+}

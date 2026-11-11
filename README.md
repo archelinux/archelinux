@@ -120,8 +120,11 @@ out/e2e-lts-desktop.png. The retained test disk is out/e2e-rc5/target.qcow2.
 Warm shell startup medians in the final image were Bash 1.90 ms, Zsh 1.13 ms,
 and Fish 6.20 ms on this host. These measurements are not a hardware-independent
 latency guarantee. BIOS installation and physical NVIDIA/CUDA, Wi-Fi,
-suspend/resume, and multi-monitor behavior remain unverified. Signed release
-publication and a hosted GitHub Actions run are also still outstanding.
+suspend/resume, and multi-monitor behavior remain unverified. The hosted GitHub Actions ISO build has passed. The signed
+[2.0.0 RC1 prerelease](https://github.com/archelinux/archelinux/releases/tag/v2.0.0-rc1)
+is public, with ISO reconstruction instructions, package repository setup,
+signatures, checksums, and the new public release key. Physical hardware
+validation remains outstanding.
 
 ## Sway / Litho Dark
 

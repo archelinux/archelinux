@@ -1,13 +1,15 @@
 #!/usr/bin/python3
 """Activate the verified archelinux rolling channel without refreshing Arch's package databases."""
 import argparse
+from http.client import IncompleteRead
 import os
 from pathlib import Path
 import re
 import shutil
 import subprocess
 import tempfile
-from urllib.error import HTTPError
+import sys
+from urllib.error import URLError
 from urllib.request import urlopen
 
 CHANNEL = "https://raw.githubusercontent.com/archelinux/archelinux/rolling-channel/stable"
@@ -55,11 +57,12 @@ def activate(args):
             for filename in ("arche.db", "arche.db.sig"):
                 with urlopen(f"{server}/{filename}", timeout=20) as src, (work / filename).open("wb") as dst:
                     shutil.copyfileobj(src, dst)
-        except HTTPError as err:
-            if args.if_published and err.code == 404 and filename == "arche.db":
-                print("Rolling channel is not published yet. Run sudo arche-enable-rolling after publication.")
-                return
-            raise
+        except (URLError, TimeoutError, ConnectionError, IncompleteRead) as err:
+            if not args.if_published:
+                raise
+            print(f"Could not fetch {filename}: {err}. Keeping the bundled repository. "
+                  "Retry with sudo arche-enable-rolling after checking connectivity.", file=sys.stderr)
+            return
         # Export precisely the pinned key. Supplying an additional key in the
         # input file must never grant that key pacman trust.
         gpg = ["gpg", "--batch", "--homedir", directory]
@@ -67,8 +70,14 @@ def activate(args):
         keyring = work / "trusted.gpg"
         with keyring.open("wb") as stream:
             subprocess.run([*gpg, "--export", FINGERPRINT], stdout=stream, check=True)
-        subprocess.run(["gpgv", "--homedir", directory, "--keyring", keyring,
-                        work / "arche.db.sig", work / "arche.db"], check=True)
+        verification = subprocess.run(["gpgv", "--homedir", directory, "--keyring", keyring,
+                                       work / "arche.db.sig", work / "arche.db"])
+        if verification.returncode:
+            if not args.if_published:
+                verification.check_returncode()
+            print("WARNING: Rolling database signature verification failed. Keeping the bundled "
+                  "repository. Check the release announcements before retrying.", file=sys.stderr)
+            return
         subprocess.run(["pacman-key", "--init"], check=True)
         subprocess.run(["pacman-key", "--add", keyring], check=True)
         subprocess.run(["pacman-key", "--lsign-key", FINGERPRINT], check=True)

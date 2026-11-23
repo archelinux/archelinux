@@ -32,7 +32,7 @@ Use the public release key you verified when you installed. If you need a new co
 
 The helper verifies the signed database against the pinned key, locally signs that key in pacman's keyring, and replaces the `[arche]` section in place. It leaves the Arch mirror configuration alone. The setup refuses an active pacman database lock. It can be run again after pacman finishes. Now run the full upgrade above. Check `pacman-conf --repo arche Server` and `pacman -Si arche/arche-maintenance` to see the selected server and package version.
 
-Future installation media ship the helper and key in `arche-maintenance`. The guided and unattended installers install from the bundled repository first and switch the target at the end. An ISO built before the first channel publication prints a message if the database has not been published. In that case run `sudo arche-enable-rolling` once the channel is available.
+Future installation media ship the helper and key in `arche-maintenance`. The guided and unattended installers install from the bundled repository first and switch the target at the end. If the channel is unavailable during installation, the installer keeps the bundled repository and prints a retry command. Run `sudo arche-enable-rolling` when the server is reachable. If signature verification fails, the installer keeps the bundled repository and displays a warning. Check project announcements before retrying.
 
 ## Recovery
 

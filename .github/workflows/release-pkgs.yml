@@ -16,7 +16,9 @@ jobs:
       - uses: actions/checkout@v4
       - run: bash scripts/build-repo.sh
       - name: Verify signed channel updates with disposable test keys
-        run: python tests/rolling-channel.py
+        run: |
+          python tests/rolling-bootstrap.py
+          python tests/rolling-channel.py
       - uses: actions/upload-artifact@v4
         with:
           name: packages

@@ -7,7 +7,22 @@ on:
 permissions:
   contents: read
 jobs:
+  installer:
+    name: "Test Package: arche-install"
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Exercise the packaged archinstall entry point and guided menu
+        run: |
+          pacman -Syu --needed --noconfirm archinstall patch
+          ./scripts/prepare-installer.sh
+          export PYTHONPATH="$PWD/airootfs/usr/share/arche/installer"
+          python -P -m archinstall --help
+          python -P tests/guided-installer.py
   iso:
+    name: "Test: ISO Build"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

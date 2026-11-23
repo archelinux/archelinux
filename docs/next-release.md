@@ -1,6 +1,6 @@
-# archelinux 2.0.0
+# archelinux rolling installer
 
-The USB boots to the installer. Connect to the internet so it can fetch the software you select. Back up files on the destination disk before starting.
+The USB boots Linux LTS with networking firmware and starts the installer. Connect to the internet so it can fetch the software you select. Back up files on the destination disk before starting.
 
 **What you get.** New accounts use Zsh with the Oh My Zsh `bureau` prompt, autosuggestions, syntax highlighting and searchable history. The recommended installation opens an i3-style Sway desktop with Foot, LazyVim for Neovim, tmux, bat, ripgrep, fd, fzf and zoxide. The installer shows the selected tools. You can change them or clear the list for a console system. Language servers, local model runtimes and CUDA are optional.
 
@@ -12,7 +12,7 @@ Physical GPU, external-display, Wi-Fi and suspend behavior depends on the machin
 
 On first launch, Neovim downloads the LazyVim plugins. Keep the internet connection active until setup finishes. Change the default `archevim` colorscheme in `~/.config/nvim/lua/plugins/colors.lua`.
 
-**Optional bundles.** The ISO carries the archelinux pacman repository. Select `arche-base`, `arche-tui-stack`, `arche-agentic-core`, or `arche-cuda` in **Arche software**, or install them later with pacman. CUDA, cuDNN and NVIDIA drivers download from official Arch mirrors when selected.
+**Optional bundles.** The installer fetches the selected bundles from the signed archelinux channel. Select `arche-base`, `arche-tui-stack`, `arche-agentic-core`, or `arche-cuda` in **Arche software**, or install them later with pacman. CUDA, cuDNN and NVIDIA drivers download from official Arch mirrors when selected.
 
 Twin Blades wallpaper sourced from the [dharmx/walls collection](https://github.com/dharmx/walls/blob/e8d8a42e4fbecb2cf9619995edbc7ce19610bbd8/anime/aeb9uhrbr41a1.webp).
 

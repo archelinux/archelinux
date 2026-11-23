@@ -27,9 +27,20 @@ config = {
     'network_config': {'type': 'nm'},
     'disk_config': DiskLayoutConfiguration(DiskLayoutType.Default, [layout]).json(),
 }
+if not Path('/run/arche-test/candidate').exists():
+    del config['kernels']  # Exercise the default installed kernel choices on new media.
 Path('/run/arche-qa.json').write_text(json.dumps(config))
 PY
 /root/arche-install --silent --config /run/arche-qa.json --skip-ntp --skip-wkd --skip-wifi-check --skip-version-check
+if [[ ! -d $share/candidate ]]; then
+  [[ $(uname -r) == *-lts && ! -e /usr/share/arche/repo ]]
+  [[ $(arch-chroot /mnt pacman-conf --repo arche Server) == https://raw.githubusercontent.com/archelinux/archelinux/rolling-channel/stable ]]
+  arch-chroot /mnt pacman -Q linux-lts linux-zen
+  for kernel in linux-lts linux-zen; do
+    test -s "/mnt/boot/vmlinuz-$kernel"
+    test -s "/mnt/boot/initramfs-$kernel.img"
+  done
+fi
 cmp /mnt/usr/share/arche/zshrc /mnt/home/tester/.zshrc
 [[ $(findmnt -no FSTYPE --mountpoint /mnt) == xfs ]]
 [[ $(cat /mnt/etc/hostname) == archelinux ]]

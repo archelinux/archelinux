@@ -1,6 +1,5 @@
 # Live console, network, installer and recovery kernels.
 base
-linux-zen
 linux-lts
 linux-firmware
 intel-ucode

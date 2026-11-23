@@ -48,6 +48,10 @@ jobs:
               mount --bind /var/cache/pacman/pkg "$target/var/cache/pacman/pkg"
               arch-chroot "$target" env PYTHONPATH=/usr/share/arche/installer python -P -m archinstall --help
               # Exercise the full workspace in the disposable target after sealing the console ISO.
+              # Use the just-built recipes for this build-only smoke test.
+              mkdir -p "$target/usr/local/share/arche-build-repo"
+              mount --bind "/workspace/pkgs/local-repo" "$target/usr/local/share/arche-build-repo"
+              python scripts/configure-repo.py "$target/etc/pacman.conf" "$target/etc/pacman.conf" /usr/local/share/arche-build-repo
               arch-chroot "$target" pacman-key --init
               arch-chroot "$target" pacman-key --populate archlinux
               arch-chroot "$target" pacman -Sy --needed --noconfirm arche-tui-stack arche-agentic-core

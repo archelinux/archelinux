@@ -6,7 +6,7 @@ archelinux is an Arch-based distro for people who still think in i3 keybindings.
 
 ![The idle desktop with Waybar and the Twin Blades wallpaper](assets/screenshots/archelinux-desktop.jpg)
 
-The installer starts with XFS, optional LUKS encryption, and the Zen and LTS kernels. Keep the recommended workspace or clear the tool selection for a console install. The USB includes the archelinux packages. During installation, pacman downloads their Arch Linux dependencies from Arch mirrors.
+The installer starts with XFS, optional LUKS encryption, and the Zen and LTS kernels. Keep the recommended workspace or clear the tool selection for a console install. The USB boots Linux LTS and includes networking firmware. During installation, pacman downloads your selected tools from the signed archelinux channel and Arch mirrors.
 
 ## At the keyboard
 

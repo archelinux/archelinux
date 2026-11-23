@@ -1,5 +1,4 @@
 """Archelinux choices for the archinstall guided workflow."""
-from pathlib import Path
 import shutil
 import subprocess
 
@@ -158,11 +157,14 @@ def package_plan(config):
     return list(dict.fromkeys(packages))
 
 
+def prepare_channel():
+    subprocess.run(['arche-enable-rolling'], check=True)
+
+
 def prepare_target(installation, config):
     target = installation.target
-    repo = Path('/usr/share/arche/repo')
-    shutil.copytree(repo, target / repo.relative_to('/'), dirs_exist_ok=True)
     installation.add_additional_packages(package_plan(config))
+    installation.arch_chroot('arche-enable-rolling', peek_output=True)
     if 'spotify' in config.arche_tools:
         installation.arch_chroot('flatpak remote-add --system --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo')
         installation.arch_chroot('flatpak install --system --noninteractive flathub com.spotify.Client')

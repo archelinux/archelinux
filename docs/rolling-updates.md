@@ -34,6 +34,8 @@ The helper verifies the signed database against the pinned key, locally signs th
 
 Future installation media ship the helper and key in `arche-maintenance`. The guided and unattended installers install from the bundled repository first and switch the target at the end. If the channel is unavailable during installation, the installer keeps the bundled repository and prints a retry command. Run `sudo arche-enable-rolling` when the server is reachable. If signature verification fails, the installer keeps the bundled repository and displays a warning. Check project announcements before retrying.
 
+The LTS-only netinstall image verifies stable before changing the target disk and downloads selected packages during installation. If the channel is unavailable, reconnect and retry the installer.
+
 ## Recovery
 
 If an update fails signature verification, stop and retry a full upgrade after checking the system clock and network. The database and detached signature are separate HTTP requests. A client crossing a promotion can temporarily receive different revisions from a cache. Verification fails closed until both files match. Keep signature checks enabled. If a new package breaks a previously working setup, the alternate LTS boot entry, TTY2 and `sudo arche-rollback PACKAGE` are available according to the [recovery guide](getting-started.md#recovery-and-maintenance). Cached rollback needs the earlier archive and related packages may need coordinated downgrades.

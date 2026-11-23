@@ -75,4 +75,23 @@ ExecStart=/usr/local/bin/arche-qa-desktop
 WantedBy=multi-user.target
 UNIT
 arch-chroot /mnt systemctl enable arche-test-desktop.service
+if [[ -d $share/candidate ]]; then
+  # Snapshot and test service exist only in the disposable signed-channel rehearsal.
+  cp -a "$share/candidate" /mnt/var/tmp/arche-candidate
+  cp "$share/release.asc" /mnt/var/tmp/arche-release.asc
+  install -m755 "$share/upgrade.sh" /mnt/usr/local/bin/arche-qa-upgrade
+  cat > /mnt/etc/systemd/system/arche-test-upgrade.service <<'UNIT'
+[Unit]
+After=arche-test-desktop.service network-online.target
+Requires=arche-test-desktop.service
+Wants=network-online.target
+[Service]
+Type=oneshot
+TimeoutStartSec=1800
+ExecStart=/usr/local/bin/arche-qa-upgrade
+[Install]
+WantedBy=multi-user.target
+UNIT
+  arch-chroot /mnt systemctl enable arche-test-upgrade.service
+fi
 sync

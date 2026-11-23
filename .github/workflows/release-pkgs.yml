@@ -1,39 +1,45 @@
-name: Release signed pacman repository
+name: Promote signed rolling packages
 on:
   workflow_dispatch:
+concurrency:
+  group: archelinux-rolling-promotion
+  cancel-in-progress: false
 permissions:
   contents: read
 jobs:
   build:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     container:
       image: archlinux:base-devel
     steps:
       - uses: actions/checkout@v4
       - run: bash scripts/build-repo.sh
+      - name: Verify signed channel updates with disposable test keys
+        run: python tests/rolling-channel.py
       - uses: actions/upload-artifact@v4
         with:
           name: packages
           path: pkgs/local-repo/*.pkg.tar.zst
           if-no-files-found: error
-  sign-and-publish:
+  candidate:
     needs: build
     runs-on: ubuntu-latest
     environment: package-release
-    permissions:
-      contents: write
     container:
       image: archlinux:base-devel
     steps:
-      - run: pacman -Syu --needed --noconfirm gnupg github-cli
+      - run: pacman -Syu --needed --noconfirm gnupg git python
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/download-artifact@v4
         with:
           name: packages
           path: repo
-      - name: Sign packages and database with persistent release key
+      - name: Prepare signed candidate
         env:
           ARCHE_SIGNING_KEY: ${{ secrets.ARCHE_SIGNING_KEY }}
-          ARCHE_SIGNING_FINGERPRINT: ${{ secrets.ARCHE_SIGNING_FINGERPRINT }}
           ARCHE_SIGNING_PASSPHRASE: ${{ secrets.ARCHE_SIGNING_PASSPHRASE }}
         shell: bash
         run: |
@@ -41,21 +47,63 @@ jobs:
           export GNUPGHOME=$(mktemp -d)
           trap 'rm -rf "$GNUPGHOME"' EXIT
           printf '%s' "$ARCHE_SIGNING_KEY" | gpg --batch --import
-          for package in repo/*.pkg.tar.zst; do
-            printf '%s' "$ARCHE_SIGNING_PASSPHRASE" | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 --local-user "$ARCHE_SIGNING_FINGERPRINT" --detach-sign "$package"
-          done
-          repo-add --include-sigs repo/arche.db.tar.gz repo/*.pkg.tar.zst
-          for database in repo/arche.db.tar.gz repo/arche.files.tar.gz; do
-            printf '%s' "$ARCHE_SIGNING_PASSPHRASE" | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 --local-user "$ARCHE_SIGNING_FINGERPRINT" --detach-sign "$database"
-          done
-          # GitHub Release assets must be regular files with pacman's requested names.
-          cp --remove-destination repo/arche.db.tar.gz repo/arche.db
-          cp repo/arche.db.tar.gz.sig repo/arche.db.sig
-          cp --remove-destination repo/arche.files.tar.gz repo/arche.files
-          cp repo/arche.files.tar.gz.sig repo/arche.files.sig
-          gpg --armor --export "$ARCHE_SIGNING_FINGERPRINT" > repo/arche-signing-key.asc
-      - name: Publish immutable repository release
+          unset ARCHE_SIGNING_KEY
+          ./scripts/checkout-channel.sh "https://github.com/$GITHUB_REPOSITORY.git" channel
+          python scripts/stage-rolling.py repo channel
+          git -C channel add stable
+          git -C channel -c user.name=archelinux-release -c user.email=release@archelinux.org commit -m "Promote packages from $GITHUB_SHA"
+          git -C channel bundle create ../candidate.bundle refs/heads/rolling-channel
+      - uses: actions/upload-artifact@v4
+        with:
+          name: signed-candidate
+          path: candidate.bundle
+          if-no-files-found: error
+  upgrade:
+    needs: candidate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: signed-candidate
+      - name: Install the verified 2.0.0 release, upgrade and cold boot
         env:
           GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-        run: gh release create "pkgs-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" repo/* --title "Arche packages ${GITHUB_RUN_ID}" --notes 'Signed Arche Linux binary repository. Use this tag in your pacman Server URL.'
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends qemu-system-x86 qemu-utils ovmf
+          git clone -b rolling-channel candidate.bundle channel
+          gh release download v2.0.0 -p '*.iso*' --dir baseline
+          gpg --batch --dearmor --output /tmp/release.gpg keys/archelinux-release.asc
+          cd baseline
+          iso=archelinux-2026.11.23-x86_64.iso
+          gpgv --keyring /tmp/release.gpg "$iso.sha256.sig" "$iso.sha256"
+          sha256sum -c "$iso.sha256"
+          gpgv --keyring /tmp/release.gpg "$iso.sig" "$iso"
+          cd ..
+          sudo python3 tests/qemu/guided.py "baseline/$iso" /tmp/rolling-vm channel/stable
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rolling-upgrade-test
+          path: |
+            /tmp/rolling-vm/*.png
+            /tmp/rolling-vm/*.log
+            /tmp/rolling-vm/share/install.log
+  promote:
+    needs: upgrade
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: signed-candidate
+      - name: Promote the exact tested commit
+        run: |
+          git fetch ./candidate.bundle refs/heads/rolling-channel
+          git push origin FETCH_HEAD:refs/heads/rolling-channel

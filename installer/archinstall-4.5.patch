@@ -384,7 +384,12 @@ index 8bceabe..1e79b86 100644
  		if config.swap and config.swap.enabled:
  			installation.setup_swap(algo=config.swap.algorithm)
  
-@@ -213,6 +208,9 @@ def main(arch_config_handler: ArchConfigHandler | None = None) -> None:
+@@ -184 +179,3 @@ def perform_installation(
+-		installation.genfstab()
++		installation.arch_chroot('arche-enable-rolling --if-published')
++
++		installation.genfstab()
+@@ -213,6 +210,9 @@ def main(arch_config_handler: ArchConfigHandler | None = None) -> None:
  	if not arch_config_handler.args.silent:
  		show_menu(arch_config_handler, mirror_list_handler)
  

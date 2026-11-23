@@ -2,7 +2,7 @@
 pkgbase=arche-tui-stack
 pkgname=(arche-tui-stack arche-workspace-defaults arche-neovim-parsers arche-waybar-github)
 pkgver=2.0.0
-pkgrel=39
+pkgrel=40
 pkgdesc='Terminal development, Neovim and Litho Dark Sway desktop'
 arch=('any')
 url='https://github.com/archelinux/archelinux'
@@ -91,7 +91,7 @@ package_arche-tui-stack() {
 
 package_arche-waybar-github() {
   pkgdesc='Unread GitHub pull requests and issues for Waybar'
-  depends=(github-cli xdg-utils)
+  depends=(github-cli xdg-utils python)
   backup=()
   install -Dm755 "$srcdir/arche-waybar-github" "$pkgdir/usr/bin/arche-waybar-github"
 }

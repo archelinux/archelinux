@@ -28,7 +28,7 @@ def visit(node):
     for child in node.get('nodes', []) + node.get('floating_nodes', []): visit(child)
 visit(json.load(open(sys.argv[1])))
 assert nodes, 'Foot did not start'
-assert all(n['border']=='none' and n['current_border_width']==0 for n in nodes)
+assert all(n['border']=='pixel' and n['current_border_width']==1 for n in nodes)
 PY
 pgrep -u "$(id -u)" -x waybar >/dev/null
 if grep -Ei 'style.css:.*(error|expected)|invalid section name' "$XDG_RUNTIME_DIR/sway.log"; then
@@ -36,7 +36,7 @@ if grep -Ei 'style.css:.*(error|expected)|invalid section name' "$XDG_RUNTIME_DI
 fi
 swaymsg exit >/dev/null 2>&1 || true
 wait "$compositor"
-echo 'Headless Sway, Waybar, Foot and zero-width borders passed'
+echo 'Headless Sway, Waybar, Foot and one-pixel tile outlines passed'
 CHECK
 chmod 755 "$runtime/check"
 chown -R nobody:nobody "$runtime"

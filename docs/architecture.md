@@ -49,7 +49,7 @@ PYTHONPATH="$PWD/airootfs/usr/share/arche/installer" python -P tests/guided-inst
 
 Run these from the repository root. `build-repo.sh` builds and lints the repository's PKGBUILDs as an unprivileged user. SwayFX uses the upstream tagged source archive. Basedpyright uses its upstream npm release and Arch provides Bun. The builder verifies source checksums and indexes the resulting binary packages in `pkgs/local-repo/arche.db.tar.zst`. The empty optional CUDA metapackage validates its dependency transaction with `pacman -Sp --needed` and packages metadata with `makepkg --nodeps`, avoiding GPU-driver installation and DKMS execution on the builder. The default packages use full dependency installation. Root invocations create a temporary builder with passwordless sudo for pacman only; normal users use their existing sudo access. The builder and its sudoers rule are removed at exit, and the build host pacman configuration is restored. The build rewrites the `[arche]` stanza in the profile's `pacman.conf` to point at the generated local repository and generates the live image's corresponding configuration. Run it again after moving the checkout. Use fresh archiso work/output and package staging directories for each build; a nonempty package staging directory is rejected to prevent publishing stale artifacts.
 
-The local repository contains unsigned packages built with the ISO and has a scoped `SigLevel = Optional TrustAll`; official Arch repositories continue to require signatures. The installer copies this repository into the target so its package sources remain accessible after reboot. Configure a signed release repository for future Arche package updates.
+The local repository contains unsigned packages built with the ISO and has a scoped `SigLevel = Optional TrustAll`; official Arch repositories continue to require signatures. The installer copies this repository into the target so its package sources remain accessible after reboot. New installers verify and enable the signed rolling channel at the end of installation when its first snapshot is available. Existing installations can [enable rolling updates](rolling-updates.md).
 
 ## Install and recover
 
@@ -70,23 +70,7 @@ Both servers bind to loopback. User units normally stop at logout; enable linger
 
 ## CI and releases
 
-`build-iso.yml` runs Docker explicitly on Ubuntu with `--privileged` and `/dev:/dev`, checks loop-device availability, and runs package build/lint, mkarchiso and runtime smoke tests. ISOs are written into the workspace `out/` directory for artifact upload. `release.yml` calls the build workflow, waits for the QEMU installation and desktop boot to pass, then signs the ISO from that run. `release-pkgs.yml` builds packages without signing secrets, then signs them in a separate `package-release` environment and publishes an immutable GitHub Release tag.
-
-Configure these environment secrets before running package publication:
-
-- `ARCHE_SIGNING_KEY`: ASCII-armored persistent private key.
-- `ARCHE_SIGNING_FINGERPRINT`: signing key fingerprint.
-- `ARCHE_SIGNING_PASSPHRASE`: key passphrase (empty for an unencrypted CI key).
-
-Verify the published public key fingerprint through a trusted channel, import and locally sign it with `pacman-key`, then replace the local `[arche]` entry with:
-
-```ini
-[arche]
-SigLevel = Required DatabaseRequired
-Server = https://github.com/archelinux/archelinux/releases/download/pkgs-RUN_ID-RUN_ATTEMPT
-```
-
-Each immutable tag includes signed package archives, signed `arche.db` / `arche.files`, and the public key. Point clients at the new tag to adopt a later repository release. Both release workflows use a persistent release key. The required GitHub signing secrets must be configured before using CI for signing.
+`build-iso.yml` runs Docker explicitly on Ubuntu with `--privileged` and `/dev:/dev`, checks loop-device availability, and runs package build/lint, mkarchiso and runtime smoke tests. ISOs are written into the workspace `out/` directory for artifact upload. `release.yml` calls the build workflow, waits for the QEMU installation and desktop boot to pass, then signs the ISO from that run. `release-pkgs.yml` builds a candidate without signing credentials. A separate signing job stages the candidate in a disposable checkout of the rolling channel. The upgrade job installs the verified 2.0.0 ISO into a VM, upgrades the installed desktop using the signed candidate, exercises package rollback, reapplies the update and cold-boots the upgraded desktop. Only that tested commit can be promoted. See [rolling updates](rolling-updates.md) for the user transition, signing and publication procedure.
 
 ## Verification status and VM acceptance
 

@@ -9,10 +9,15 @@ from run import VM, wait_for
 
 iso = Path(sys.argv[1]).resolve(strict=True)
 work = Path(sys.argv[2]).resolve()
+candidate = Path(sys.argv[3]).resolve(strict=True) if len(sys.argv) == 4 else None
 work.mkdir()
 share = work / 'share'
 share.mkdir()
 shutil.copyfile(Path(__file__).with_name('guided-live.sh'), share / 'install.sh')
+if candidate:
+    shutil.copytree(candidate, share / 'candidate')
+    shutil.copyfile(Path(__file__).with_name('rolling-upgrade.sh'), share / 'upgrade.sh')
+    shutil.copyfile(Path(__file__).resolve().parents[2] / 'keys/archelinux-release.asc', share / 'release.asc')
 shutil.copyfile('/usr/share/OVMF/OVMF_VARS_4M.fd', work / 'vars.fd')
 subprocess.run(['qemu-img', 'create', '-f', 'qcow2', str(work / 'target.qcow2'), '24G'], check=True)
 
@@ -40,6 +45,22 @@ try:
     log = work / 'installed-serial.log'
     wait_for(lambda: 'ARCHE_DESKTOP_READY' in log.read_text(errors='replace'), 180, 'installed SwayFX desktop')
     vm.command('screendump', {'filename': str(work / 'desktop.png'), 'format': 'png'})
+    if candidate:
+        wait_for(lambda: 'ARCHE_UPGRADE_PASS' in log.read_text(errors='replace')
+                 or 'ARCHE_UPGRADE_FAILED' in log.read_text(errors='replace'), 1800, 'signed rolling upgrade')
+        if 'ARCHE_UPGRADE_PASS' not in log.read_text(errors='replace'):
+            raise RuntimeError(log.read_text(errors='replace')[-10000:])
 finally:
     vm.stop()
+if candidate:
+    vm = VM(work)
+    try:
+        vm.start('upgraded')
+        log = work / 'upgraded-serial.log'
+        wait_for(lambda: 'ARCHE_DESKTOP_READY' in log.read_text(errors='replace'), 180,
+                 'upgraded SwayFX desktop')
+        vm.command('screendump', {'filename': str(work / 'upgraded-desktop.png'), 'format': 'png'})
+    finally:
+        vm.stop()
+    print('Verified 2.0.0 upgrade, dotfile retention, cached rollback and upgraded desktop cold boot.')
 print('Verified UEFI boot, guided XFS installation, default hostname and SwayFX first login.')

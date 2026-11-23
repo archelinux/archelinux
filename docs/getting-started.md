@@ -53,6 +53,8 @@ may require coordinated downgrades.
 
 ## Your first few shortcuts
 
+Follow [Your first ten minutes in archelinux](first-session.md) for a hands-on walkthrough.
+
 | Action | Shortcut |
 | --- | --- |
 | Open a terminal | Super + Return |

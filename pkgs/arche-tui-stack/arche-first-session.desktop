@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=archelinux First Session
+Comment=Read the offline guide to the desktop, terminal, editor and recovery console
+Keywords=help;guide;shortcuts;keyboard;tmux;neovim;sway;
+Icon=help-browser
+TryExec=less
+Exec=less /usr/share/doc/arche-workspace-defaults/first-session.md
+Terminal=true
+Categories=Utility;Documentation;

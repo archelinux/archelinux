@@ -3,6 +3,13 @@
 set -euo pipefail
 account=arche-update-test
 pacman -S --needed --noconfirm arche-zsh arche-workspace-defaults
+# The installed desktop launcher must open a package-owned, local guide.
+launcher=/usr/share/applications/arche-first-session.desktop
+guide=/usr/share/doc/arche-workspace-defaults/first-session.md
+grep -Fxq 'Terminal=true' "$launcher"
+grep -Fxq "Exec=less $guide" "$launcher"
+command -v less >/dev/null
+runuser -u nobody -- less "$guide" | cmp - "$guide"
 source /root/arche-install
 CHROOT=/
 prepare_user_skeleton

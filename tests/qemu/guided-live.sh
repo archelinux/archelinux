@@ -49,7 +49,8 @@ cat > /mnt/usr/local/bin/arche-qa-desktop <<'CHECK'
 #!/usr/bin/env bash
 set -eu
 exec > /dev/ttyS0 2>&1
-[[ $(hostname) == archelinux ]]
+trap 'journalctl -b -u getty@tty1.service -n 60 --no-pager' ERR
+[[ $(uname -n) == archelinux ]]
 XDG_RUNTIME_DIR=/run/user/$(id -u tester)
 export XDG_RUNTIME_DIR
 for _ in {1..100}; do

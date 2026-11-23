@@ -50,8 +50,8 @@ jobs:
               arch-chroot "$target" pacman-key --init
               arch-chroot "$target" pacman-key --populate archlinux
               arch-chroot "$target" pacman -Sy --needed --noconfirm arche-tui-stack arche-agentic-core
-              install -m644 tests/workspace-update.sh "$target/tmp/arche-workspace-update.sh"
-              arch-chroot "$target" bash /tmp/arche-workspace-update.sh
+              install -m644 tests/workspace-update.sh "$target/root/arche-workspace-update.sh"
+              arch-chroot "$target" bash /root/arche-workspace-update.sh
               arch-chroot /tmp/archiso-tmp/x86_64/airootfs /bin/bash /root/arche-smoke-test
               arch-chroot /tmp/archiso-tmp/x86_64/airootfs /bin/bash /root/arche-desktop-smoke
             '

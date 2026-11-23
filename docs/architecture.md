@@ -70,7 +70,7 @@ Both servers bind to loopback. User units normally stop at logout; enable linger
 
 ## CI and releases
 
-`build-iso.yml` runs Docker explicitly on Ubuntu with `--privileged` and `/dev:/dev`, checks loop-device availability, and runs package build/lint, mkarchiso and runtime smoke tests. ISOs are written into the workspace `out/` directory for artifact upload. `release.yml` uses the same package preparation for manual ISO releases. `release-pkgs.yml` builds packages without signing secrets, then signs them in a separate `package-release` environment and publishes an immutable GitHub Release tag.
+`build-iso.yml` runs Docker explicitly on Ubuntu with `--privileged` and `/dev:/dev`, checks loop-device availability, and runs package build/lint, mkarchiso and runtime smoke tests. ISOs are written into the workspace `out/` directory for artifact upload. `release.yml` calls the build workflow, waits for the QEMU installation and desktop boot to pass, then signs the ISO from that run. `release-pkgs.yml` builds packages without signing secrets, then signs them in a separate `package-release` environment and publishes an immutable GitHub Release tag.
 
 Configure these environment secrets before running package publication:
 
@@ -106,31 +106,12 @@ systemctl --user is-enabled ollama llama-server  # disabled
 nvim example.lua                   # :checkhealth vim.lsp, :InspectTree
 ```
 
-Local validation on 2026-11-11 completed metapackage builds, namcap (with expected
-metapackage dependency warnings), repository indexing, and a privileged Arch
-Docker mkarchiso build. The final candidate contains arche-tui-stack 2.0.0-9.
-
-The automated QEMU/KVM test installed onto a fresh 25 GiB disk with a 1 GiB ESP,
-removed the ISO, and cold-booted Zen and LTS separately. Both passed the XFS
-geometry/reflink and mount checks, EFI entry and rootflag checks, ZRAM/sysctl
-checks, service activation, user ownership, Neovim LSP/parser checks (including
-an unseeded SVG filetype), and Sway desktop startup. No system units failed.
-The final run required no manual input.
-
-The complete run history is in tests/install-test.log. Generated artifacts are
-out/archelinux-2026.11.10-x86_64.iso and out/SHA256SUMS. Updated VM screenshots
-are out/e2e-live-desktop.png, out/e2e-installed-desktop.png,
-out/e2e-fuzzel-neovim.png, out/e2e-storage-terminal.png, and
-out/e2e-lts-desktop.png. The retained test disk is out/e2e-rc5/target.qcow2.
-
-Warm shell startup medians in the final image were Bash 1.90 ms, Zsh 1.13 ms,
-and Fish 6.20 ms on this host. These measurements are not a hardware-independent
-latency guarantee. BIOS installation and physical NVIDIA/CUDA, Wi-Fi,
-suspend/resume, and multi-monitor behavior remain unverified. The hosted GitHub Actions ISO build has passed. The signed
-[Archelinux 2.0.0 release](https://github.com/archelinux/archelinux/releases/tag/v2.0.0-rc1)
-is public, with ISO reconstruction instructions, package repository setup,
-signatures, checksums, and the new public release key. Physical hardware
-validation remains outstanding.
+The release job boots the sealed ISO under UEFI, installs to a fresh XFS disk,
+removes the ISO, and boots the installed system. The guest checks the hostname,
+the user’s Zsh configuration, the running SwayFX compositor and Waybar. Build
+logs, the installer screenshot and the installed desktop screenshot are available
+in the GitHub Actions run. For the older dual-kernel acceptance run, see
+[the recorded QEMU log](../tests/install-test.log).
 
 ## Sway / Litho Dark
 

@@ -37,7 +37,11 @@ for filename, server in [('pacman.conf', '/workspace/pkgs/local-repo'), ('airoot
 for path in (root / '.github/workflows').glob('*.yml'):
     workflow = yaml.safe_load(path.read_text())
     assert workflow.get('jobs'), path
-    for job in workflow['jobs'].values():
+    for name, job in workflow['jobs'].items():
+        if 'uses' in job:
+            assert (path.name, name, job['uses']) == ('release.yml', 'verify', './.github/workflows/build-iso.yml')
+            assert workflow['jobs']['release']['needs'] == name
+            continue
         assert job['runs-on'] == 'ubuntu-latest'
         assert isinstance(job['steps'], list)
 iso = yaml.safe_load((root / '.github/workflows/build-iso.yml').read_text())['jobs']['iso']

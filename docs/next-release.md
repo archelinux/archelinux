@@ -1,4 +1,4 @@
-# archelinux 2.0.0-rc2
+# archelinux 2.0.0
 
 The USB boots to the installer. Connect to the internet so it can fetch the software you select. Back up files on the destination disk before starting.
 

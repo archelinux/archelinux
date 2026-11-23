@@ -8,7 +8,7 @@ The recommended system is a keyboard-driven Sway desktop with Zsh, Oh My Zsh, Ne
 
 ## Install
 
-**Images built from this checkout** start the Archelinux adaptation of archinstall 4.5 on TTY1. Published release v2.0.0-rc1 uses the earlier XFS-only installer.
+archelinux 2.0.0 starts its guided archinstall 4.5 installer on TTY1.
 
 1. Download and verify the signed ISO as instructed on its release page, then write it to installation media.
 2. Boot the console and connect to the network. Use NetworkManager or `nmcli` if needed.
@@ -16,8 +16,6 @@ The recommended system is a keyboard-driven Sway desktop with Zsh, Oh My Zsh, Ne
 4. New accounts start in Zsh with Oh My Zsh, the `bureau` theme and the shell plugins described below. Edit `~/.zshrc` to personalize them.
 5. In **Disk configuration**, select the target and layout. Archelinux uses XFS for the root filesystem. UEFI uses a separate FAT32 EFI partition. Configure LUKS encryption here if wanted and retain your passphrase. The installer does not choose a target disk for you.
 6. Review kernels, bootloader, networking, locale, time zone and authentication. Check the final configuration and selected disk before confirming. Formatting erases the selected partitions.
-
-For **v2.0.0-rc1**, run `/root/arche-install`, choose a root partition of at least 16 GiB and, on UEFI, a 1 GiB EFI partition. Follow the hostname, username, locale and password prompts. That release installs the complete workspace.
 
 Release signing-key fingerprint:
 

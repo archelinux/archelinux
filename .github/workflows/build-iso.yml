@@ -4,6 +4,7 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+  workflow_call:
 permissions:
   contents: read
 jobs:
@@ -61,7 +62,6 @@ jobs:
           path: out/*.iso
           if-no-files-found: error
   boot-release:
-    if: github.event_name == 'workflow_dispatch'
     needs: iso
     runs-on: ubuntu-latest
     steps:

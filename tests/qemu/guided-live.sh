@@ -30,6 +30,7 @@ config = {
 Path('/run/arche-qa.json').write_text(json.dumps(config))
 PY
 /root/arche-install --silent --config /run/arche-qa.json --skip-ntp --skip-wkd --skip-wifi-check --skip-version-check
+cmp /mnt/usr/share/arche/zshrc /mnt/home/tester/.zshrc
 [[ $(findmnt -no FSTYPE --mountpoint /mnt) == xfs ]]
 [[ $(cat /mnt/etc/hostname) == archelinux ]]
 arch-chroot /mnt pacman -Q arche-swayfx swayfx arche-zsh neovim

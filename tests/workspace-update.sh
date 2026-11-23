@@ -3,10 +3,13 @@
 set -euo pipefail
 account=arche-update-test
 pacman -S --needed --noconfirm arche-zsh arche-workspace-defaults
-useradd --create-home --skel /usr/share/arche/skel --shell /bin/zsh "$account"
+source /root/arche-install
+CHROOT=/
+prepare_user_skeleton
+useradd --create-home --skel /etc/skel --shell /bin/zsh "$account"
 trap 'userdel --remove "$account"' EXIT
 home_dir=$(getent passwd "$account" | cut -d: -f6)
-install -o "$account" -g "$(id -gn "$account")" -m644 /usr/share/arche/zshrc "$home_dir/.zshrc"
+cmp /usr/share/arche/zshrc "$home_dir/.zshrc"
 runuser -u "$account" -- env HOME="$home_dir" TERM=xterm zsh -lic '
   [[ $ZSH_THEME == bureau ]] && (( $+functions[bureau_precmd] )) || exit 1
   for fn in omz _zsh_autosuggest_start _zsh_highlight history-substring-search-up; do

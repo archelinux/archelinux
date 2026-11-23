@@ -19,36 +19,22 @@ on:
         required: false
 
 jobs:
-  build-and-release:
-    name: "Build and Release ISO"
+  verify:
+    uses: ./.github/workflows/build-iso.yml
+    permissions:
+      contents: read
+  release:
+    name: Sign verified ISO
+    needs: verify
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    container:
-      image: archlinux:latest
-      options: --privileged --volume /dev:/dev
-
     steps:
-      - name: "Install dependencies"
-        run: |
-          pacman -Syu --noconfirm
-          pacman -S --noconfirm --needed archiso grub git gnupg jq memtest86+-efi coreutils findutils sed util-linux
-
-      - name: "Checkout"
-        uses: actions/checkout@v4
-
-      - name: "Build package repository"
-        run: bash scripts/build-repo.sh
-
-      - name: "Check installer defaults and disk review"
-        run: PYTHONPATH="$PWD/airootfs/usr/share/arche/installer" python -P tests/guided-installer.py
-
-      - name: "Build ISO"
-        run: |
-          mkarchiso -v -w /tmp/archiso-work -o /tmp/archiso-out .
-
-      - name: "Verify the package repository in the sealed ISO"
-        run: bash tests/iso-repository.sh /tmp/archiso-out/*.iso
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: archelinux-iso
+          path: /tmp/archiso-out
 
       - name: "Generate checksums"
         id: sums
@@ -62,18 +48,17 @@ jobs:
 
       - name: "Compute release metadata"
         id: meta
+        env:
+          TAG: ${{ inputs.tag_name }}
+          TITLE: ${{ inputs.release_name }}
         run: |
-          DATE=$(date -u +%Y%m%d)
-          if [ -z "${{ github.event.inputs.tag_name }}" ]; then
-            echo "tag_name=rolling-$DATE" >> $GITHUB_OUTPUT
-          else
-            echo "tag_name=${{ github.event.inputs.tag_name }}" >> $GITHUB_OUTPUT
-          fi
-          if [ -z "${{ github.event.inputs.release_name }}" ]; then
-            echo "release_name=Arche Linux rolling ${DATE:0:4}-${DATE:4:2}-${DATE:6:2}" >> $GITHUB_OUTPUT
-          else
-            echo "release_name=${{ github.event.inputs.release_name }}" >> $GITHUB_OUTPUT
-          fi
+          date=$(date -u +%Y%m%d)
+          tag=${TAG:-rolling-$date}
+          git check-ref-format "refs/tags/$tag"
+          title=${TITLE:-archelinux rolling $(date -u +%F)}
+          [[ $title != *$'\n'* && $title != *$'\r'* ]]
+          echo "tag_name=$tag" >> "$GITHUB_OUTPUT"
+          echo "release_name=$title" >> "$GITHUB_OUTPUT"
 
       - name: "Import persistent key and sign"
         env:
@@ -90,32 +75,32 @@ jobs:
           for file in "${{ steps.sums.outputs.iso_name }}" "${{ steps.sums.outputs.iso_name }}.sha256"; do
             printf '%s' "$ARCHE_SIGNING_PASSPHRASE" | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 --local-user "$ARCHE_SIGNING_FINGERPRINT" --detach-sign "$file"
           done
-          split -b 1536M -d -a 2 "${{ steps.sums.outputs.iso_name }}" "${{ steps.sums.outputs.iso_name }}.part"
-          rm "${{ steps.sums.outputs.iso_name }}"
+          sha256sum --check "${{ steps.sums.outputs.iso_name }}.sha256"
+          gpg --verify "${{ steps.sums.outputs.iso_name }}.sig" "${{ steps.sums.outputs.iso_name }}"
+          gpg --verify "${{ steps.sums.outputs.iso_name }}.sha256.sig" "${{ steps.sums.outputs.iso_name }}.sha256"
+          if (( $(stat -c %s "${{ steps.sums.outputs.iso_name }}") >= 2147483648 )); then
+            split -b 1536M -d -a 2 "${{ steps.sums.outputs.iso_name }}" "${{ steps.sums.outputs.iso_name }}.part"
+            rm "${{ steps.sums.outputs.iso_name }}"
+          fi
 
       - name: "Upload artifacts"
         uses: actions/upload-artifact@v4
         with:
-          name: archelinux-iso
+          name: archelinux-signed-iso
           path: |
-            ${{ steps.sums.outputs.out_dir }}/${{ steps.sums.outputs.iso_name }}.part*
-            ${{ steps.sums.outputs.out_dir }}/${{ steps.sums.outputs.iso_name }}.sha256
-            ${{ steps.sums.outputs.out_dir }}/${{ steps.sums.outputs.iso_name }}.sha256.sig
-            ${{ steps.sums.outputs.out_dir }}/${{ steps.sums.outputs.iso_name }}.sig
+            ${{ steps.sums.outputs.out_dir }}/${{ steps.sums.outputs.iso_name }}*
             ${{ steps.sums.outputs.out_dir }}/archelinux-release-public.asc
-          if-no-files-found: warn
+          if-no-files-found: error
 
       - name: "Create GitHub Release"
         if: github.event_name == 'workflow_dispatch' && github.event.inputs.create_release == 'true'
         uses: softprops/action-gh-release@v2
         with:
+          target_commitish: ${{ github.sha }}
           tag_name: ${{ steps.meta.outputs.tag_name }}
           name: ${{ steps.meta.outputs.release_name }}
           files: |
-            ${{ steps.sums.outputs.out_dir }}/${{ steps.sums.outputs.iso_name }}.part*
-            ${{ steps.sums.outputs.out_dir }}/${{ steps.sums.outputs.iso_name }}.sha256
-            ${{ steps.sums.outputs.out_dir }}/${{ steps.sums.outputs.iso_name }}.sha256.sig
-            ${{ steps.sums.outputs.out_dir }}/${{ steps.sums.outputs.iso_name }}.sig
+            ${{ steps.sums.outputs.out_dir }}/${{ steps.sums.outputs.iso_name }}*
             ${{ steps.sums.outputs.out_dir }}/archelinux-release-public.asc
           body_path: docs/next-release.md
           generate_release_notes: true

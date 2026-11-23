@@ -41,6 +41,8 @@ For paired brackets and quotes, add `autopair` to `plugins=(...)` in `~/.zshrc`.
 
 ## Recovery and maintenance
 
+On an installed system with the stable channel enabled, run `sudo pacman -Syu` to update Arch and archelinux packages together. If your 2.0.0 installation still uses the bundled repository, follow the one-time channel setup in [Rolling updates](rolling-updates.md).
+
 Choose the LTS entry from the boot menu if you need an alternative to Zen.
 TTY2–6 provide console access independently of the desktop.
 

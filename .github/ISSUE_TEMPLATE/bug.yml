@@ -1,0 +1,22 @@
+name: Distro bug
+description: Report a reproducible installer, update or workspace failure
+body:
+  - type: input
+    id: version
+    attributes:
+      label: ISO release, kernel or affected package version
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+    validations:
+      required: true
+  - type: textarea
+    id: result
+    attributes:
+      label: Expected and observed behavior
+      description: Include relevant error text after removing personal information.
+    validations:
+      required: true

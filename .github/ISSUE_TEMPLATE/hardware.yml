@@ -1,0 +1,38 @@
+name: Hardware compatibility
+description: Share results from a physical device
+title: "Hardware report: "
+body:
+  - type: input
+    id: hardware
+    attributes:
+      label: Manufacturer, model and GPU
+      description: Include the GPU driving the external display if known.
+    validations:
+      required: true
+  - type: input
+    id: system
+    attributes:
+      label: ISO release, kernel version and test date
+      description: Use uname -r for the kernel version.
+    validations:
+      required: true
+  - type: textarea
+    id: results
+    attributes:
+      label: Results
+      description: Mark each feature working, limited, failed, or untested.
+      value: |
+        Install and boot:
+        SwayFX desktop:
+        Suspend and resume:
+        Dock and external displays:
+        Screen sharing:
+        Audio:
+        Wi-Fi:
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: Steps, symptoms and workarounds
+      description: Remove serial numbers, credentials and other private details.

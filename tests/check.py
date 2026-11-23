@@ -15,6 +15,9 @@ for recipe in (root / 'pkgs').glob('*/PKGBUILD'):
     for source, digest in zip(sources, sums):
         source, digest = source.strip("'"), digest.strip("'")
         if "::https://" in source:
+            staged = recipe.parent / source.split("::", 1)[0]
+            if staged.exists():
+                assert hashlib.sha256(staged.read_bytes()).hexdigest() == digest, staged
             assert re.fullmatch(r'[a-f0-9]{64}', digest), recipe
         else:
             assert hashlib.sha256((recipe.parent / source).read_bytes()).hexdigest() == digest, recipe
@@ -27,9 +30,9 @@ with tempfile.TemporaryDirectory() as tmp:
     for name in ['foo-1.0-1', 'foo-2.0-1', 'foo-3.0-1', 'foo-10.0-1', 'foo-extra-2.5-1']:
         (cache / (name + '-any.pkg.tar.zst')).touch()
     (cache / 'foo-2.0-1-any.pkg.tar.zst.sig').touch()
-    script = tmp / 'rollback'
-    script.write_text((root / 'pkgs/arche-base/files/usr/bin/arche-rollback').read_text().replace('/var/cache/pacman/pkg', str(cache)))
+    script = root / 'pkgs/arche-base/files/usr/bin/arche-rollback'
     commands = {
+        'pacman-conf': f'#!/bin/bash\n[[ $1 == CacheDir ]] && echo "{cache}"\n',
         'pacman': '''#!/bin/bash
 case $1 in
 -Q) echo 'foo 3.0-1';;

@@ -8,8 +8,14 @@ package=$1
 installed=$(pacman -Q "$package")
 installed=${installed#* }
 best_version='' best_file=''
+cache_dirs=$(pacman-conf CacheDir)
+mapfile -t directories <<< "$cache_dirs"
 shopt -s nullglob
-for file in /var/cache/pacman/pkg/"$package"-*.pkg.tar.*; do
+archives=()
+for dir in "${directories[@]}"; do
+  [[ -d $dir ]] && archives+=("$dir"/"$package"-*.pkg.tar.*)
+done
+for file in "${archives[@]}"; do
   [[ $file != *.sig ]] || continue
   info=$(pacman -Qp -- "$file" 2>/dev/null) || continue
   read -r name version <<< "$info"

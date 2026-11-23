@@ -15,7 +15,7 @@ on:
         description: "Tag name for the release (default: rolling-YYYYMMDD)"
         required: false
       release_name:
-        description: "Release title (default: Arche Linux rolling YYYY-MM-DD)"
+        description: "Release title (default: archelinux YYYY.MM.DD)"
         required: false
 
 jobs:
@@ -51,11 +51,13 @@ jobs:
         env:
           TAG: ${{ inputs.tag_name }}
           TITLE: ${{ inputs.release_name }}
+          ISO_NAME: ${{ steps.sums.outputs.iso_name }}
         run: |
-          date=$(date -u +%Y%m%d)
-          tag=${TAG:-rolling-$date}
+          [[ $ISO_NAME =~ ^archelinux-([0-9]{4}\.[0-9]{2}\.[0-9]{2})-x86_64\.iso$ ]]
+          snapshot=${BASH_REMATCH[1]}
+          tag=${TAG:-rolling-${snapshot//./}}
           git check-ref-format "refs/tags/$tag"
-          title=${TITLE:-archelinux rolling $(date -u +%F)}
+          title=${TITLE:-archelinux $snapshot}
           [[ $title != *$'\n'* && $title != *$'\r'* ]]
           echo "tag_name=$tag" >> "$GITHUB_OUTPUT"
           echo "release_name=$title" >> "$GITHUB_OUTPUT"

@@ -2,6 +2,7 @@
 """Report unread GitHub PR and issue threads to Waybar."""
 import html
 import json
+import os
 import subprocess
 
 
@@ -34,12 +35,24 @@ def notification_status(pages):
     return {'text': ' · '.join(labels), 'tooltip': html.escape('\n\n'.join(lines))}
 
 
-if __name__ == '__main__':
+def current_status():
     try:
         response = subprocess.run(
             ['gh', 'api', '--hostname', 'github.com', '--paginate', '--slurp',
-             '/notifications?per_page=100'], capture_output=True, check=True, timeout=45)
-        status = notification_status(json.loads(response.stdout))
-    except (OSError, subprocess.SubprocessError, ValueError):
-        status = {'text': ''}
-    print(json.dumps(status))
+             '/notifications?per_page=100'], capture_output=True, text=True, timeout=45,
+             env={**os.environ, 'LC_ALL': 'C', 'GH_PROMPT_DISABLED': '1'})
+        if response.returncode:
+            diagnostic = response.stderr.lower()
+            if 'gh auth login' in diagnostic or 'http 401' in diagnostic:
+                return {'text': 'GH login', 'class': 'auth-required',
+                        'tooltip': 'Sign in with gh auth login --hostname github.com'}
+            return {'text': 'GH ?', 'class': 'unavailable',
+                    'tooltip': 'Could not read GitHub notifications. Check connectivity and notification access.'}
+        return notification_status(json.loads(response.stdout))
+    except (OSError, subprocess.TimeoutExpired, ValueError):
+        return {'text': 'GH ?', 'class': 'unavailable',
+                'tooltip': 'GitHub notifications are unavailable. Check gh and your network connection.'}
+
+
+if __name__ == '__main__':
+    print(json.dumps(current_status()))

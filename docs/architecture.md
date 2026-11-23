@@ -90,7 +90,7 @@ Each immutable tag includes signed package archives, signed `arche.db` / `arche.
 
 ## Verification status and VM acceptance
 
-`tests/check.sh` checks shell syntax, source checksums, rollback edge cases, and formats a disposable sparse file to inspect XFS geometry. `arche-smoke-test` checks image binaries, LSP registration and parser loading and reports 20-sample warm shell startup medians, enforcing the requested 15 ms budget. Runner load and hardware affect that budget; it is not a universal latency guarantee.
+`tests/check.sh` checks shell syntax, source checksums, rollback edge cases, and formats a disposable sparse file to inspect XFS geometry. `arche-smoke-test` checks image binaries, LSP registration and parser loading and measures warm interactive shell startup over 20 samples. The median must stay below 15 ms for Bash and Fish and below 100 ms for Zsh with Oh My Zsh, the bureau theme and the default plugins.
 
 Before publishing an ISO, install in a disposable QEMU VM with both UEFI and BIOS firmware. Verify both kernel entries boot, then run:
 

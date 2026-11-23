@@ -1,3 +1,9 @@
+assert(require("lazy.core.config").plugins.LazyVim._.loaded, "LazyVim failed to load")
+assert(vim.g.colors_name == "archevim", "Expected the archevim colorscheme")
+local popup = vim.api.nvim_get_hl(0, { name = "Pmenu", link = false })
+assert(popup.bg == 0x0d1014 and popup.fg == 0xd9dde4, "Expected readable dark menus")
+local cursor_line = vim.api.nvim_get_hl(0, { name = "CursorLine" })
+assert(cursor_line.bg == 0x171b21 and cursor_line.fg == nil, "Expected a subtle cursor line that preserves syntax colors")
 assert(vim.v.errmsg == "", vim.v.errmsg)
 for _, name in ipairs({ "lua_ls", "rust_analyzer", "basedpyright", "gopls" }) do
   assert(vim.lsp.is_enabled(name), name .. " not enabled")

@@ -1,0 +1,28 @@
+# Maintainer: archelinux maintainers
+pkgname=swayfx
+pkgver=0.6.1
+pkgrel=3
+pkgdesc='Sway compositor with blur and rounded corners'
+arch=('x86_64')
+url='https://github.com/WillPower3309/swayfx'
+license=('MIT')
+depends=('cairo' 'gdk-pixbuf2' 'libevdev' 'libinput' 'json-c' 'scenefx' 'systemd-libs' 'wayland' 'libxcb' 'libxkbcommon' 'pango' 'pcre2' 'ttf-font' 'wlroots0.20')
+makedepends=('meson' 'wayland-protocols' 'scdoc' 'systemd')
+provides=('sway' 'wayland-compositor')
+conflicts=('sway')
+backup=('etc/sway/config')
+options=('!debug')
+source=('swayfx-0.6.1.tar.gz::https://codeload.github.com/WillPower3309/swayfx/tar.gz/refs/tags/0.6.1' '50-systemd-user.conf' 'sway-portals.conf')
+sha256sums=('7afe1e29a3508d3ab724d5ef029df48fcbf770c4af48c294e3051571aa835dcb' '6705fbac190f9271816df42a8f73df30f0dfe75469dc1af1cc18b665a0b0e38d' '7175955634b0dad141d35d6d4c9c41071d39bf0a32ccd6f64ae5b89eb0b00914')
+
+build() {
+  arch-meson "swayfx-$pkgver" build -Dwerror=false -Dsd-bus-provider=libsystemd
+  meson compile -C build
+}
+
+package() {
+  DESTDIR="$pkgdir" meson install -C build
+  install -Dm644 50-systemd-user.conf "$pkgdir/etc/sway/config.d/50-systemd-user.conf"
+  install -Dm644 sway-portals.conf "$pkgdir/usr/share/xdg-desktop-portal/sway-portals.conf"
+  install -Dm644 "swayfx-$pkgver/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

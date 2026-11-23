@@ -149,7 +149,11 @@ main() {
     [[ $(readlink -f "$EFI_PARTITION") != "$(readlink -f "$ROOT_PARTITION")" ]] || fail 'Root and EFI must differ'
     (( $(blockdev --getsize64 "$EFI_PARTITION") >= 1073741824 )) || fail 'EFI partition needs at least 1 GiB for both kernels'
   fi
-  if [[ $UNATTENDED == false ]]; then ask HOST_NAME 'Hostname: '; fi
+  if [[ $UNATTENDED == false ]]; then
+    local hostname_input
+    ask hostname_input "Hostname [$HOST_NAME]: "
+    HOST_NAME=${hostname_input:-$HOST_NAME}
+  fi
   [[ $HOST_NAME =~ ^[a-zA-Z0-9][a-zA-Z0-9-]{0,62}$ ]] || fail 'Invalid hostname'
   if [[ $UNATTENDED == false ]]; then ask NORMAL_USER 'Username: '; fi
   [[ $NORMAL_USER =~ ^[a-z_][a-z0-9_-]*$ && $NORMAL_USER != root ]] || fail 'Invalid username'
@@ -200,4 +204,13 @@ main() {
   setup_bootloader
   echo 'Installation complete. Unmount /mnt recursively and reboot; inference services are opt-in.'
 }
-if [[ ${BASH_SOURCE[0]} == "$0" ]]; then main "$@"; fi
+if [[ ${BASH_SOURCE[0]} == "$0" ]]; then
+  for arg in "$@"; do
+    if [[ $arg == --unattended ]]; then main "$@"; exit; fi
+  done
+  [[ -f /usr/share/arche/installer/archinstall/arche.py ]] || fail 'Missing Archelinux installer runtime'
+  pacman-key --init
+  pacman-key --populate archlinux
+  export PYTHONPATH=/usr/share/arche/installer
+  exec python -P -m archinstall "$@"
+fi

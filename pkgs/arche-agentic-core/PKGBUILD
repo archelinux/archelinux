@@ -1,18 +1,25 @@
 # Maintainer: Arche Linux maintainers
-pkgname=arche-agentic-core
+pkgbase=arche-agentic-core
+pkgname=(arche-agentic-core arche-inference-defaults)
 pkgver=2.0.0
-pkgrel=1
+pkgrel=3
 pkgdesc='Local agent runtimes and opt-in inference units'
 arch=('any')
 url='https://github.com/archelinux/archelinux'
 license=('GPL-3.0-only')
-depends=('python' 'uv' 'bun-bin' 'cargo-binstall' 'ast-grep' 'tree-sitter-cli')
+_full_deps=('python' 'uv' 'bun' 'cargo-binstall' 'ast-grep' 'tree-sitter-cli')
 optdepends=('ollama: local model inference' 'llama.cpp: GGUF inference server')
+makedepends=("${_full_deps[@]}")
 source=('config-0' 'config-1' 'config-2')
 sha256sums=('a9476193df799047b302de060c17c8bff72a0e8dfea4851d6d3f3b5d082a1cdd' '43446fd9661325bbf7bf8c822fdf66ed9f74603b8001330627f70bd12c4349dc' 'd02ecc9cdcdc9be7f6773e3d5392207da17f639bbe8fa08fc66edfcec57d7ab2')
 backup=()
-package() {
+package_arche-inference-defaults() {
+  pkgdesc='Opt-in user services for local model servers'
   install -Dm644 "$srcdir/config-0" "$pkgdir/usr/lib/systemd/user/ollama.service"
   install -Dm644 "$srcdir/config-1" "$pkgdir/usr/lib/systemd/user/llama-server.service"
   install -Dm644 "$srcdir/config-2" "$pkgdir/usr/share/arche/skel/.config/arche/llama-server.env"
+}
+
+package_arche-agentic-core() {
+  depends=(arche-inference-defaults "${_full_deps[@]}")
 }

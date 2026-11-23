@@ -1,39 +1,28 @@
 {
   "layer": "top",
   "position": "top",
-  "height": 44,
+  "height": 34,
   "modules-center": [
-    "sway/workspaces",
-    "sway/mode",
-    "mpris",
-    "idle_inhibitor",
-    "group/status",
-    "battery",
-    "tray",
     "clock"
   ],
   "sway/workspaces": {
     "disable-scroll": true,
     "all-outputs": true,
-    "format": "{name}"
+    "format": "{name}",
+    "persistent-workspaces": {
+      "1": [],
+      "2": [],
+      "3": [],
+      "4": [],
+      "5": [],
+      "6": [],
+      "7": [],
+      "8": [],
+      "9": []
+    }
   },
   "sway/mode": {
     "format": "⚙ {}"
-  },
-  "mpris": {
-    "format": "{player_icon} {dynamic}",
-    "format-paused": "⏸ {dynamic}",
-    "dynamic-len": 30,
-    "player-icons": {
-      "default": "▶"
-    }
-  },
-  "idle_inhibitor": {
-    "format": "{icon}",
-    "format-icons": {
-      "activated": "",
-      "deactivated": ""
-    }
   },
   "cpu": {
     "format": " {usage}%",
@@ -46,11 +35,6 @@
     "interval": 5,
     "tooltip-format": "{used:0.1f}G / {total:0.1f}G used"
   },
-  "backlight": {
-    "format": " {percent}%",
-    "on-scroll-up": "brightnessctl -q set +5%",
-    "on-scroll-down": "brightnessctl -q set 5%-"
-  },
   "wireplumber": {
     "format": "  {volume}%",
     "format-muted": "  muted",
@@ -58,15 +42,20 @@
     "scroll-step": 5
   },
   "network": {
-    "format-wifi": "  {essid} {signalStrength}%",
+    "format-wifi": "  {signalStrength}%",
     "format-ethernet": "  {ifname}",
     "format-disconnected": "  offline",
     "tooltip-format": "{ifname}: {ipaddr}/{cidr}",
-    "interval": 10
+    "interval": 10,
+    "tooltip-format-wifi": "{essid} · {ipaddr}/{cidr}"
   },
-  "sway/language": {
-    "format": " {short}",
-    "tooltip": false
+  "custom/github": {
+    "exec-if": "test -x /usr/bin/arche-waybar-github",
+    "exec": "/usr/bin/arche-waybar-github",
+    "return-type": "json",
+    "interval": 120,
+    "hide-empty-text": true,
+    "on-click": "xdg-open https://github.com/notifications"
   },
   "battery": {
     "states": {
@@ -89,19 +78,61 @@
     "spacing": 8
   },
   "clock": {
-    "format": " {:%H:%M}",
-    "format-alt": "{:%A, %B %d, %Y (%R)}",
+    "interval": 1,
+    "format": "<span foreground=\"#bdc1c6\">{0:%a %d %b %Y}</span>  ·  {0:%H:%M:%S}",
+    "format-alt": "{:%A, %B %d, %Y (%T)}",
     "tooltip-format": "<tt><small>{calendar}</small></tt>"
   },
-  "group/status": {
-    "orientation": "horizontal",
+  "margin": "13 13 0 13",
+  "modules-left": [
+    "sway/workspaces",
+    "sway/mode",
+    "sway/window"
+  ],
+  "modules-right": [
+    "privacy",
+    "custom/github",
+    "custom/gpu",
+    "cpu",
+    "memory",
+    "custom/disk",
+    "custom/vpn",
+    "network",
+    "tray",
+    "wireplumber",
+    "battery"
+  ],
+  "sway/window": {
+    "max-length": 42,
+    "tooltip": false
+  },
+  "privacy": {
+    "icon-size": 16,
     "modules": [
-      "cpu",
-      "memory",
-      "backlight",
-      "wireplumber",
-      "network",
-      "sway/language"
+      {
+        "type": "screenshare"
+      },
+      {
+        "type": "audio-in"
+      }
     ]
+  },
+  "custom/disk": {
+    "exec": "/usr/lib/arche/waybar-status disk",
+    "return-type": "json",
+    "interval": 60,
+    "hide-empty-text": true
+  },
+  "custom/gpu": {
+    "exec": "/usr/lib/arche/waybar-status gpu",
+    "return-type": "json",
+    "interval": 10,
+    "hide-empty-text": true
+  },
+  "custom/vpn": {
+    "exec": "/usr/lib/arche/waybar-status vpn",
+    "return-type": "json",
+    "interval": 15,
+    "hide-empty-text": true
   }
 }

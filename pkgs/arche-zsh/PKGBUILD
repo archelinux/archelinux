@@ -1,0 +1,33 @@
+# Maintainer: Arche Linux maintainers
+# Upstream archive: git archive --format=tar.gz 87aa1a9b892a3b150f93c53b577a2ec67e617f30
+# fzf-tab: Aloxaf/fzf-tab d7e0234614dbe5369fdd760907d12c0e05a4dccc
+# autopair: hlissner/zsh-autopair 449a7c3d095bc8f3d78cf37b9549f8bb4c383f3d
+# you-should-use: MichaelAquilina/zsh-you-should-use 5f3d129864ee4505043d88c3486224f1d75b692e
+# Repository: https://github.com/ohmyzsh/ohmyzsh
+pkgname=arche-zsh
+pkgver=2026.11.22
+pkgrel=3
+pkgdesc='Arche Zsh login environment with Oh My Zsh'
+arch=('any')
+url='https://github.com/archelinux/archelinux'
+license=('MIT' 'GPL-3.0-only')
+depends=('zsh' 'git' 'python' 'zsh-autosuggestions' 'zsh-completions' 'zsh-syntax-highlighting')
+makedepends=('patch')
+optdepends=('fzf: fuzzy history and Tab completion')
+source=('oh-my-zsh.tar.gz' 'zshrc' 'fzf-tab.tar.gz' 'autopair.tar.gz' 'you-should-use.tar.gz' 'bureau-first-prompt.patch')
+sha256sums=('f6f6b23dc704e5548e28926a74d49565be58386028ff89fcb36575bb854f054a' 'e0577ad5cfa2b49d2912177e4ae8a05e03dacb8f04503405300e98bbde634576' '4867ab3113c6c6308e7b3e74018779815bfbaa62ddee1e41e1b7e2e4aedfb8f8' '1d1bf9b8202838ef23a1fa80879861af51ff80560307a099ed39a3e9dbc74b19' 'df21970016291df1df338012b8b014657be58728201983ef97ab18a42eb6f275' '6f4682041ea86563c528c0d4e16117491b01b6411507faeaec0e31d4570ca812')
+noextract=('oh-my-zsh.tar.gz')
+package() {
+  install -d "$pkgdir/usr/share/oh-my-zsh"
+  tar -xzf "$srcdir/oh-my-zsh.tar.gz" -C "$pkgdir/usr/share/oh-my-zsh" \
+    oh-my-zsh.sh lib plugins themes templates tools custom LICENSE.txt
+  patch --batch --directory "$pkgdir/usr/share/oh-my-zsh" --strip=1 < "$srcdir/bureau-first-prompt.patch"
+  install -Dm644 "$pkgdir/usr/share/oh-my-zsh/LICENSE.txt" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+  local plugin
+  for plugin in fzf-tab autopair you-should-use; do
+    cp -r "$srcdir/$plugin" "$pkgdir/usr/share/oh-my-zsh/plugins/"
+    install -Dm644 "$srcdir/$plugin/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/$plugin"
+  done
+  chmod -R go-w "$pkgdir/usr/share/oh-my-zsh"
+  install -Dm644 "$srcdir/zshrc" "$pkgdir/usr/share/arche/zshrc"
+}

@@ -6,7 +6,11 @@ for command in lua-language-server rust-analyzer basedpyright-langserver gopls u
 done
 # archiso moves /boot images onto the ISO boot partition before this check.
 pacman -Qk linux-zen linux-lts
-nvim --headless -i NONE -u /etc/skel/.config/nvim/init.lua -l /root/arche-smoke.lua
+editor_home=$(mktemp -d)
+trap 'rm -rf "$editor_home"' EXIT
+mkdir -p "$editor_home/.config"
+cp -R /etc/skel/.config/nvim "$editor_home/.config/"
+HOME="$editor_home" XDG_CONFIG_HOME="$editor_home/.config" nvim --headless -i NONE -c 'lua local ok, err = pcall(dofile, "/root/arche-smoke.lua"); if not ok then print(err); vim.cmd("cquit 1") end' -c qa
 for unit in ollama llama-server; do
   test ! -e "/etc/systemd/user/default.target.wants/$unit.service"
 done

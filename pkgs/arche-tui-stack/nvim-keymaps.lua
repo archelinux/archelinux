@@ -1,0 +1,1 @@
+../../airootfs/etc/skel/.config/nvim/lua/config/keymaps.lua

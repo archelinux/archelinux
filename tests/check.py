@@ -13,7 +13,11 @@ for recipe in (root / 'pkgs').glob('*/PKGBUILD'):
     sums = re.search(r'^sha256sums=\((.*)\)$', text, re.M)[1].split()
     assert len(sources) == len(sums)
     for source, digest in zip(sources, sums):
-        assert hashlib.sha256((recipe.parent / source.strip("'")).read_bytes()).hexdigest() == digest.strip("'"), recipe
+        source, digest = source.strip("'"), digest.strip("'")
+        if "::https://" in source:
+            assert re.fullmatch(r'[a-f0-9]{64}', digest), recipe
+        else:
+            assert hashlib.sha256((recipe.parent / source).read_bytes()).hexdigest() == digest, recipe
 
 with tempfile.TemporaryDirectory() as tmp:
     tmp = Path(tmp)

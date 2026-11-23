@@ -61,8 +61,8 @@ systemctl is-active NetworkManager paccache.timer
 systemctl is-enabled NetworkManager paccache.timer
 test -z "$(find /home/arche/.config \( ! -user arche -o ! -group arche \) -print -quit)"
 ls -l /home/arche/.config/sway/config /home/arche/.config/waybar/config.jsonc
-grep -Fx 'output * bg /usr/share/arche/wallpaper.svg fill' /home/arche/.config/sway/config
-cmp /usr/share/arche/wallpaper.svg /run/arche-test/wallpaper.svg
+grep -Fx 'output * bg /usr/share/arche/twin-blades.jpg fill' /home/arche/.config/sway/config
+cmp /usr/share/arche/twin-blades.jpg /run/arche-test/twin-blades.jpg
 cmp /usr/share/arche/logo.svg /run/arche-test/logo.svg
 for package in arche-base arche-tui-stack arche-agentic-core; do
   if pacman -Ql "$package" | grep ' /etc/skel/'; then exit 1; fi
@@ -70,7 +70,7 @@ done
 test "$(passwd -S root | awk '{print $2}')" = L
 test "$(passwd -S arche | awk '{print $2}')" = L
 uid=$(id -u arche)
-runuser -u arche -- env XDG_RUNTIME_DIR="/run/user/$uid" nvim --headless -i NONE -u /home/arche/.config/nvim/init.lua -l /run/arche-test/arche-smoke.lua
+runuser -u arche -- env XDG_RUNTIME_DIR="/run/user/$uid" nvim --headless -i NONE -c 'lua local ok, err = pcall(dofile, "/run/arche-test/arche-smoke.lua"); if not ok then print(err); vim.cmd("cquit 1") end' -c qa
 runuser -u arche -- env XDG_RUNTIME_DIR="/run/user/$uid" nvim --headless -i NONE -c 'lua if not vim.lsp.is_enabled("lua_ls") then vim.cmd("cquit") end' -c checkhealth -c qa
 for unit in ollama llama-server; do
   test ! -e "/etc/systemd/user/default.target.wants/$unit.service"

@@ -1,4 +1,7 @@
 [window]
+opacity = 0.85
+padding = { x = 20, y = 20 }
+blur = true
 decorations = "None"
 [font]
 normal = { family = "JetBrainsMono Nerd Font", style = "Regular" }

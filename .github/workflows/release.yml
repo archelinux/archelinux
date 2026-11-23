@@ -40,9 +40,15 @@ jobs:
       - name: "Build package repository"
         run: bash scripts/build-repo.sh
 
+      - name: "Check installer defaults and disk review"
+        run: PYTHONPATH="$PWD/airootfs/usr/share/arche/installer" python -P tests/guided-installer.py
+
       - name: "Build ISO"
         run: |
           mkarchiso -v -w /tmp/archiso-work -o /tmp/archiso-out .
+
+      - name: "Verify the package repository in the sealed ISO"
+        run: bash tests/iso-repository.sh /tmp/archiso-out/*.iso
 
       - name: "Generate checksums"
         id: sums
@@ -111,5 +117,6 @@ jobs:
             ${{ steps.sums.outputs.out_dir }}/${{ steps.sums.outputs.iso_name }}.sha256.sig
             ${{ steps.sums.outputs.out_dir }}/${{ steps.sums.outputs.iso_name }}.sig
             ${{ steps.sums.outputs.out_dir }}/archelinux-release-public.asc
+          body_path: docs/next-release.md
           generate_release_notes: true
           prerelease: ${{ github.event.inputs.prerelease == 'true' }}

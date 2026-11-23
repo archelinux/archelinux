@@ -1,0 +1,45 @@
+#!/usr/bin/python
+"""Report unread GitHub PR and issue threads to Waybar."""
+import html
+import json
+import subprocess
+
+
+def notification_status(pages):
+    counts = {'PullRequest': 0, 'Issue': 0}
+    rows = []
+    for page in pages:
+        for thread in page:
+            subject = thread['subject']
+            kind = subject['type']
+            if kind not in counts or not thread['unread']:
+                continue
+            counts[kind] += 1
+            reason = thread['reason']
+            repo = thread['repository']['full_name']
+            title = ' '.join(subject['title'].split())
+            rows.append((reason != 'review_requested', repo, title, reason))
+
+    if not rows:
+        return {'text': ''}
+    labels = []
+    if counts['PullRequest']:
+        labels.append(f"PR {counts['PullRequest']}")
+    if counts['Issue']:
+        labels.append(f"Issues {counts['Issue']}")
+    lines = [f'{repo} · {reason.replace("_", " ")}\n{title}'
+             for _, repo, title, reason in sorted(rows)[:10]]
+    if len(rows) > 10:
+        lines.append(f'+{len(rows) - 10} more')
+    return {'text': ' · '.join(labels), 'tooltip': html.escape('\n\n'.join(lines))}
+
+
+if __name__ == '__main__':
+    try:
+        response = subprocess.run(
+            ['gh', 'api', '--hostname', 'github.com', '--paginate', '--slurp',
+             '/notifications?per_page=100'], capture_output=True, check=True, timeout=45)
+        status = notification_status(json.loads(response.stdout))
+    except (OSError, subprocess.SubprocessError, ValueError):
+        status = {'text': ''}
+    print(json.dumps(status))

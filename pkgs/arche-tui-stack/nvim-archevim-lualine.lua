@@ -1,0 +1,1 @@
+../../airootfs/etc/skel/.config/nvim/lua/lualine/themes/archevim.lua

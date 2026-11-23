@@ -1,9 +1,16 @@
-# Shared installed-system dependencies live in pkgs/*/PKGBUILD.
-arche-base
-arche-tui-stack
-arche-agentic-core
-# Live media only
+# Live console, network, installer and recovery kernels.
+base
+linux-zen
+linux-lts
+linux-firmware
+intel-ucode
+amd-ucode
+networkmanager
+iwd
+archinstall
 arch-install-scripts
+arche-maintenance
+zram-generator
 mkinitcpio-archiso
 syslinux
 grub

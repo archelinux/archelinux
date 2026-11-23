@@ -1,0 +1,98 @@
+#!/usr/bin/python
+"""Conditional hardware and network indicators for the Sway workspace."""
+import html
+import json
+import os
+from pathlib import Path
+import re
+import subprocess
+import sys
+
+
+def command(args):
+    try:
+        return subprocess.check_output(args, text=True, stderr=subprocess.DEVNULL, timeout=4)
+    except (OSError, subprocess.SubprocessError):
+        return ''
+
+
+def low_disk():
+    warnings = []
+    seen = set()
+    for path in ('/', '/home'):
+        device = os.stat(path).st_dev
+        if device in seen:
+            continue
+        seen.add(device)
+        fs = os.statvfs(path)
+        free = fs.f_bavail * fs.f_frsize / 2**30
+        if free < 15:
+            warnings.append((free, path))
+    if not warnings:
+        return {}
+    free, path = min(warnings)
+    return {'text': f'{path} {free:.1f} GiB', 'class': 'warning',
+            'tooltip': '\n'.join(f'{p}: {n:.1f} GiB free' for n, p in warnings)}
+
+
+def vpn():
+    names = set()
+    interfaces = set()
+    for line in command(['nmcli', '-t', '--escape', 'no', '-f', 'TYPE,DEVICE,NAME',
+                         'connection', 'show', '--active']).splitlines():
+        fields = line.split(':', 2)
+        if len(fields) == 3 and fields[0] in ('vpn', 'wireguard'):
+            names.add(fields[2])
+            interfaces.add(fields[1])
+    for line in command(['ip', '-o', 'link', 'show', 'up', 'type', 'wireguard']).splitlines():
+        interface = line.split(':', 2)[1].strip().split('@')[0]
+        if interface not in interfaces:
+            names.add(interface)
+    return {'text': 'VPN', 'tooltip': html.escape('\n'.join(sorted(names)))} if names else {}
+
+
+def number(path):
+    try:
+        return int(path.read_text().strip())
+    except (OSError, ValueError):
+        return None
+
+
+def gpu():
+    readings = []
+    nvidia = False
+    for card in sorted(Path('/sys/class/drm').glob('card[0-9]*')):
+        if not re.fullmatch(r'card\d+', card.name):
+            continue
+        device = card / 'device'
+        try:
+            if (device / 'power/runtime_status').read_text().strip() == 'suspended':
+                continue
+        except OSError:
+            pass
+        if (device / 'driver').resolve().name == 'nvidia':
+            nvidia = True
+            continue
+        busy = number(device / 'gpu_busy_percent')
+        if busy is not None:
+            readings.append(f'{card.name}: {busy}%')
+            continue
+        for freq in [*card.glob('gt/gt*/rps_act_freq_mhz'), *device.glob('tile*/gt*/freq0/act_freq'), card / 'gt_act_freq_mhz']:
+            mhz = number(freq)
+            if mhz is not None:
+                readings.append(f'{card.name}: {mhz} MHz')
+                break
+    if nvidia:
+        for line in command(['nvidia-smi', '--query-gpu=name,utilization.gpu',
+                             '--format=csv,noheader,nounits']).splitlines():
+            name, _, value = line.rpartition(', ')
+            if value.isdigit():
+                readings.append(f'{name}: {value}%')
+    if not readings:
+        return {}
+    return {'text': 'GPU ' + readings[0].rsplit(': ', 1)[1], 'tooltip': html.escape('\n'.join(readings))}
+
+
+if __name__ == '__main__':
+    status = {'disk': low_disk, 'vpn': vpn, 'gpu': gpu}[sys.argv[1]]()
+    print(json.dumps(status or {'text': ''}))

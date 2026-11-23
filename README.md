@@ -4,7 +4,7 @@ archelinux is an Arch-based distro for people who still think in i3 keybindings.
 
 [Download 2.0.0](https://github.com/archelinux/archelinux/releases/tag/v2.0.0) · [Install guide](docs/getting-started.md) · [Build it yourself](docs/architecture.md)
 
-![The idle desktop with Waybar and the Twin Blades wallpaper](assets/screenshots/archelinux-desktop.jpg)
+![The idle desktop with Waybar and the Graphite wallpaper](assets/screenshots/archelinux-desktop.jpg)
 
 The installer starts with XFS, optional LUKS encryption, and the Zen and LTS kernels. Keep the recommended workspace or clear the tool selection for a console install. The USB includes the archelinux packages. During installation, pacman downloads their Arch Linux dependencies from Arch mirrors.
 
@@ -17,9 +17,9 @@ The installer starts with XFS, optional LUKS encryption, and the Zen and LTS ker
 
 ![Neovim with its file tree open beside Git history and Alacritty](assets/screenshots/archelinux-development.jpg)
 
-![Four SwayFX tiles showing Neovim, btop, Git history and Zsh](assets/screenshots/archelinux-tiling.jpg)
+![Four SwayFX tiles showing Neovim, a system monitor, Git history and Zsh](assets/screenshots/archelinux-tiling.jpg)
 
-Twin Blades wallpaper from [dharmx/walls](https://github.com/dharmx/walls/blob/e8d8a42e4fbecb2cf9619995edbc7ce19610bbd8/anime/aeb9uhrbr41a1.webp). The Waybar theme draws on [okubax/dotfiles](https://github.com/okubax/dotfiles).
+Upcoming builds use [Graphite](assets/graphite.svg), the project’s original wallpaper, available under [0BSD](assets/LICENSE.graphite). The Waybar theme draws on [okubax/dotfiles](https://github.com/okubax/dotfiles).
 
 ## Hardware reports
 

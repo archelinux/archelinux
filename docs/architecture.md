@@ -133,7 +133,7 @@ not a guarantee for every driver. No hook is added to the live root installer.
 new user's home and assigns their ownership. Package templates never claim
 Bash-owned `/etc/skel` files.
 
-Sway fills the output with Twin Blades from `/usr/share/arche/twin-blades.jpg`. The artwork comes from the [dharmx/walls collection](https://github.com/dharmx/walls/blob/e8d8a42e4fbecb2cf9619995edbc7ce19610bbd8/anime/aeb9uhrbr41a1.webp). Artist and redistribution license are unverified.
+Sway fills the output with the project’s Graphite artwork from `/usr/share/arche/graphite.jpg`. Its [editable source](../assets/graphite.svg) uses vector gradients and the archelinux symbol. The [0BSD license](../assets/LICENSE.graphite) covers the wallpaper and its raster export. A compatibility symlink lets existing user configurations display Graphite after upgrading.
 
 For automated UEFI installation acceptance on a disposable qcow2 disk, see
 [QEMU installation tests](../tests/qemu/README.md).

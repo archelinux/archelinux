@@ -22,7 +22,7 @@ client.focused #998f9f #202226 #ffffff #998f9f #998f9f
 client.focused_inactive #34363a #202226 #c4c7ca #34363a #34363a
 client.unfocused #34363a #202226 #c4c7ca #34363a #34363a
 client.urgent #000000 #000000 #ffffff #000000 #000000
-output * bg /usr/share/arche/twin-blades.jpg fill
+output * bg /usr/share/arche/graphite.jpg fill
 
 exec mako
 exec swayidle -w timeout 900 'swaylock -f -c 000000' timeout 905 'swaymsg "output * power off"' resume 'swaymsg "output * power on"' before-sleep 'swaylock -f -c 000000'

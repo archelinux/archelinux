@@ -14,7 +14,7 @@ On first launch, Neovim downloads the LazyVim plugins. Keep the internet connect
 
 **Optional bundles.** The ISO carries the archelinux pacman repository. Select `arche-base`, `arche-tui-stack`, `arche-agentic-core`, or `arche-cuda` in **Arche software**, or install them later with pacman. CUDA, cuDNN and NVIDIA drivers download from official Arch mirrors when selected.
 
-Twin Blades wallpaper sourced from the [dharmx/walls collection](https://github.com/dharmx/walls/blob/e8d8a42e4fbecb2cf9619995edbc7ce19610bbd8/anime/aeb9uhrbr41a1.webp).
+The desktop uses Graphite, original artwork from the archelinux project. Its editable source and 0BSD license are included in the source tree.
 
 ## Verify the download
 

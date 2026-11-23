@@ -11,7 +11,7 @@ sway = (skel / '.config/sway/config').read_text()
 assert 'default_border pixel 1' in sway
 assert 'default_floating_border pixel 1' in sway
 assert 'for_window [all] border pixel 1' in sway
-assert 'output * bg /usr/share/arche/twin-blades.jpg fill' in sway
+assert 'output * bg /usr/share/arche/graphite.jpg fill' in sway
 assert 'output eDP-1' not in sway
 bar = json.loads((skel / '.config/waybar/config.jsonc').read_text())
 assert bar['position'] == 'top' and bar['modules-left'][0] == 'sway/workspaces'

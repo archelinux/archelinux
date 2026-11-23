@@ -1,0 +1,112 @@
+#!/usr/bin/python3
+"""Activate the verified archelinux rolling channel without refreshing Arch's package databases."""
+import argparse
+from http.client import IncompleteRead
+import os
+from pathlib import Path
+import re
+import shutil
+import subprocess
+import tempfile
+import sys
+from urllib.error import URLError
+from urllib.request import urlopen
+
+CHANNEL = "https://raw.githubusercontent.com/archelinux/archelinux/rolling-channel/stable"
+FINGERPRINT = "E446C26A0B7BA1A66A3DCC9F7EC564003573C80B"
+
+
+def configured(text, server):
+    # Keep the original repository priority and every unrelated section.
+    # Pacman allows whitespace and an end-of-line comment in section headers.
+    sections = list(re.finditer(r"^[ \t]*\[([^]\n]+)\][ \t]*(?:#[^\n]*)?$", text, re.M))
+    matches = [i for i, section in enumerate(sections) if section[1] == "arche"]
+    if len(matches) > 1:
+        raise ValueError("Multiple [arche] sections; consolidate them before enabling rolling updates")
+    entry = f"[arche]\nSigLevel = Required DatabaseRequired TrustedOnly\nServer = {server}\n"
+    if not matches:
+        return text.rstrip() + "\n\n" + entry
+    i = matches[0]
+    end = sections[i + 1].start() if i + 1 < len(sections) else len(text)
+    return text[:sections[i].start()] + entry + "\n" + text[end:]
+
+
+def replace_file(source, dest):
+    with tempfile.NamedTemporaryFile(dir=dest.parent, delete=False) as tmp:
+        name = Path(tmp.name)
+        try:
+            with source.open("rb") as f:
+                shutil.copyfileobj(f, tmp)
+            tmp.flush()
+            os.fchmod(tmp.fileno(), dest.stat().st_mode & 0o777 if dest.exists() else 0o644)
+            os.fsync(tmp.fileno())
+            os.replace(name, dest)
+        finally:
+            name.unlink(missing_ok=True)
+
+
+def activate(args):
+    if os.geteuid():
+        raise SystemExit("Run with sudo")
+    server = args.server.rstrip("/")
+    if server != CHANNEL and not re.fullmatch(r"file:///[A-Za-z0-9_./-]+", server):
+        raise ValueError("Use the official HTTPS channel or a local signed staging snapshot")
+    with tempfile.TemporaryDirectory() as directory:
+        work = Path(directory)
+        try:
+            for filename in ("arche.db", "arche.db.sig"):
+                with urlopen(f"{server}/{filename}", timeout=20) as src, (work / filename).open("wb") as dst:
+                    shutil.copyfileobj(src, dst)
+        except (URLError, TimeoutError, ConnectionError, IncompleteRead) as err:
+            if not args.if_published:
+                raise
+            print(f"Could not fetch {filename}: {err}. Keeping the bundled repository. "
+                  "Retry with sudo arche-enable-rolling after checking connectivity.", file=sys.stderr)
+            return
+        # Export precisely the pinned key. Supplying an additional key in the
+        # input file must never grant that key pacman trust.
+        gpg = ["gpg", "--batch", "--homedir", directory]
+        subprocess.run([*gpg, "--import", args.key], check=True)
+        keyring = work / "trusted.gpg"
+        with keyring.open("wb") as stream:
+            subprocess.run([*gpg, "--export", FINGERPRINT], stdout=stream, check=True)
+        verification = subprocess.run(["gpgv", "--homedir", directory, "--keyring", keyring,
+                                       work / "arche.db.sig", work / "arche.db"])
+        if verification.returncode:
+            if not args.if_published:
+                verification.check_returncode()
+            print("WARNING: Rolling database signature verification failed. Keeping the bundled "
+                  "repository. Check the release announcements before retrying.", file=sys.stderr)
+            return
+        subprocess.run(["pacman-key", "--init"], check=True)
+        subprocess.run(["pacman-key", "--add", keyring], check=True)
+        subprocess.run(["pacman-key", "--lsign-key", FINGERPRINT], check=True)
+        conf = Path("/etc/pacman.conf").resolve(strict=True)
+        db = Path(subprocess.check_output(["pacman-conf", "DBPath"], text=True).strip())
+        lock = db / "db.lck"
+        with lock.open("x"):
+            try:
+                candidate = work / "pacman.conf"
+                candidate.write_text(configured(conf.read_text(), server))
+                result = subprocess.check_output(["pacman-conf", "--config", candidate,
+                                                  "--repo", "arche", "Server"], text=True)
+                if result.splitlines() != [server]:
+                    raise ValueError("Unexpected [arche] servers, inspect included pacman configuration")
+                sync = db / "sync"
+                sync.mkdir(exist_ok=True)
+                # Cache only the verified Arche database. The user's next normal
+                # full update refreshes all enabled repositories together.
+                for file in ("arche.db.sig", "arche.db"):
+                    replace_file(work / file, sync / file)
+                replace_file(candidate, conf)
+            finally:
+                lock.unlink()
+    print("The signed rolling channel is ready. Run sudo pacman -Syu to upgrade.")
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--key", type=Path, default=Path("/usr/share/arche/archelinux-release.asc"))
+    parser.add_argument("--server", default=CHANNEL, help="local signed snapshot URL for an offline rehearsal")
+    parser.add_argument("--if-published", action="store_true", help="keep the bundled channel when the first promotion has not landed")
+    activate(parser.parse_args())

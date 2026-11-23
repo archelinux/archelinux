@@ -51,6 +51,8 @@ Run these from the repository root. `build-repo.sh` builds and lints the reposit
 
 The build host uses a local staging repository. The live USB boots Linux LTS and includes firmware, networking, the rolling-channel helper and release key. Both installer paths verify the signed public channel before changing disks and fetch the selected desktop packages during installation. The target retains its selected kernels and the signed channel for future upgrades. Existing installations can [enable rolling updates](rolling-updates.md).
 
+Use the ISO build date for the filename and release title. If a second snapshot is published on the same day, supply a distinct release tag such as `rolling-YYYYMMDD.2`. Each snapshot has its own download URL and signed checksum.
+
 ## Install and recover
 
 Use the [installation guide](getting-started.md) for the current console ISO and the earlier published image. The former unattended XFS installer is exercised by the [legacy boot test](../tests/qemu/README.md).

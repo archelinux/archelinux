@@ -43,6 +43,8 @@ jobs:
               mkarchiso -v -w /tmp/archiso-tmp -o /workspace/out /workspace
               bash tests/iso-repository.sh /workspace/out/*.iso
               target=/tmp/archiso-tmp/x86_64/airootfs
+              mount --bind "$target" "$target"
+              mount --bind /var/cache/pacman/pkg "$target/var/cache/pacman/pkg"
               arch-chroot "$target" env PYTHONPATH=/usr/share/arche/installer python -P -m archinstall --help
               # Exercise the full workspace in the disposable target after sealing the console ISO.
               arch-chroot "$target" pacman-key --init

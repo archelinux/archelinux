@@ -1,0 +1,28 @@
+name: Check rolling package versions
+on:
+  pull_request:
+    paths:
+      - 'pkgs/**/PKGBUILD'
+      - 'scripts/check-package-upgrades.py'
+      - '.github/workflows/package-versions.yml'
+permissions:
+  contents: read
+jobs:
+  versions:
+    runs-on: ubuntu-latest
+    container: archlinux:base-devel
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: base
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          path: candidate
+          persist-credentials: false
+      - name: Compare package versions with pacman's ordering
+        run: |
+          pacman -Syu --needed --noconfirm python
+          useradd --create-home builder
+          runuser -u builder -- python candidate/scripts/check-package-upgrades.py base candidate

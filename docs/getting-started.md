@@ -8,7 +8,7 @@ The recommended system is a keyboard-driven Sway desktop with Zsh, Oh My Zsh, Ne
 
 ## Install
 
-archelinux 2.0.0 starts its guided archinstall 4.5 installer on TTY1.
+The ISO starts the guided archinstall installer on TTY1. The rolling installer enables the signed stable channel at the end of setup. After your first login, run `sudo pacman -Syu` to update the installed system.
 
 1. Download and verify the signed ISO as instructed on its release page, then write it to installation media.
 2. Boot the console and connect to the network. Use NetworkManager or `nmcli` if needed.
@@ -40,6 +40,8 @@ On first launch, Neovim downloads the LazyVim plugins. Keep the internet connect
 For paired brackets and quotes, add `autopair` to `plugins=(...)` in `~/.zshrc`. Add `you-should-use` for reminders about existing aliases. Oh My Zsh also ships integrations such as `docker`, `kubectl` and `vi-mode`. Run `omz plugin list` for the installed catalog. The installed zoxide and direnv integrations also load automatically when you select those tools. Open a new terminal after editing your plugin list.
 
 ## Recovery and maintenance
+
+On an installed system with the stable channel enabled, run `sudo pacman -Syu` to update Arch and archelinux packages together. If your 2.0.0 installation still uses the bundled repository, follow the one-time channel setup in [Rolling updates](rolling-updates.md).
 
 Choose the LTS entry from the boot menu if you need an alternative to Zen.
 TTY2–6 provide console access independently of the desktop.

@@ -27,12 +27,12 @@ assert '[core]\nInclude = /etc/pacman.d/mirrorlist' in configured
 assert '[extra]\nSigLevel = Required DatabaseOptional' in configured
 assert '[arche]\nSigLevel = Optional TrustAll\nServer = file:///new/repo' in configured
 assert module.configure(configured, '/new/repo') == configured
-for filename, server in [('pacman.conf', '/workspace/pkgs/local-repo'), ('airootfs/etc/pacman.conf', '/usr/share/arche/repo')]:
-    text = (root / filename).read_text()
+build_conf = (root / 'pacman.conf').read_text()
+live_conf = (root / 'airootfs/etc/pacman.conf').read_text()
+for text in (build_conf, live_conf):
     assert re.search(r'^SigLevel\s*=\s*Required DatabaseOptional$', text, re.M)
-    assert '[arche]\nSigLevel = Optional TrustAll\nServer = file://' in text
-    if filename.startswith('airootfs'):
-        assert 'Server = file://' + server in text
+assert '[arche]\nSigLevel = Optional TrustAll\nServer = file://' in build_conf
+assert '[arche]' not in live_conf  # The signed channel is added after networking is ready.
 
 for path in (root / '.github/workflows').glob('*.yml'):
     workflow = yaml.safe_load(path.read_text())

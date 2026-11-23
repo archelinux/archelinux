@@ -82,10 +82,6 @@ for name in basedpyright swayfx arche-zsh arche-base arche-swayfx arche-tui-stac
   fi
   privileged pacman -Sy --noconfirm
 done
-# The live filesystem needs its own copy at a path that survives the ISO build.
-mkdir -p "$root/airootfs/usr/share/arche/repo"
-cp -a "$repo/." "$root/airootfs/usr/share/arche/repo/"
+# Only mkarchiso consumes the local build repository. The installer uses signed stable.
 python3 "$root/scripts/configure-repo.py" "$root/pacman.conf" "$root/pacman.conf" "$repo"
-python3 "$root/scripts/configure-repo.py" "$root/pacman.conf" "$root/airootfs/etc/pacman.conf" /usr/share/arche/repo
-
 "$root/scripts/prepare-installer.sh"

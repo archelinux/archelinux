@@ -14,7 +14,7 @@ The fixed XFS layout, mount tuning and unattended QEMU path described below refe
 
 - **Storage:** XFS with reflink and CRC enabled, 512-byte inodes, 16 allocation groups. Root mounts with `rw,noatime,nodiratime,logbufs=8,logbsize=256k,allocsize=64M` and fstab dump/fsck fields `0 0`.
 - **Kernels:** Arch's `linux-zen` and matching headers, plus `linux-lts` and headers. Zen is the permitted performance-kernel fallback; no CachyOS repository is required. LTS provides a recovery boot choice, not a security-hardening guarantee.
-- **Boot:** systemd-boot on UEFI (provided by `systemd`), GRUB on BIOS; Zen default, explicit LTS entry, two-second timeout. Both kernels also boot the live image.
+- **Boot:** systemd-boot on UEFI (provided by `systemd`), GRUB on BIOS; Zen default, explicit LTS entry, two-second timeout. The live USB boots LTS.
 - **Memory:** RAM-sized zstd ZRAM at priority 100; the requested VM, dirty-page and inotify tuning lives in `airootfs/etc/sysctl.d/99-arche-perf.conf`.
 - **Recovery:** weekly `paccache.timer` and a transaction hook retain three cached versions. `arche-rollback PACKAGE` selects the newest cached version older than the installed version using pacman's metadata and version ordering. It rejects prefix matches and missing history. This is package recovery, not a filesystem backup; related libraries may need coordinated downgrades. Only versions actually downloaded remain available.
 
@@ -47,9 +47,11 @@ mkarchiso -v -w /tmp/archiso-tmp -o /tmp/archiso-out .
 PYTHONPATH="$PWD/airootfs/usr/share/arche/installer" python -P tests/guided-installer.py
 ```
 
-Run these from the repository root. `build-repo.sh` builds and lints the repository's PKGBUILDs as an unprivileged user. SwayFX uses the upstream tagged source archive. Basedpyright uses its upstream npm release and Arch provides Bun. The builder verifies source checksums and indexes the resulting binary packages in `pkgs/local-repo/arche.db.tar.zst`. The empty optional CUDA metapackage validates its dependency transaction with `pacman -Sp --needed` and packages metadata with `makepkg --nodeps`, avoiding GPU-driver installation and DKMS execution on the builder. The default packages use full dependency installation. Root invocations create a temporary builder with passwordless sudo for pacman only; normal users use their existing sudo access. The builder and its sudoers rule are removed at exit, and the build host pacman configuration is restored. The build rewrites the `[arche]` stanza in the profile's `pacman.conf` to point at the generated local repository and generates the live image's corresponding configuration. Run it again after moving the checkout. Use fresh archiso work/output and package staging directories for each build; a nonempty package staging directory is rejected to prevent publishing stale artifacts.
+Run these from the repository root. `build-repo.sh` builds and lints the repository's PKGBUILDs as an unprivileged user. SwayFX uses the upstream tagged source archive. Basedpyright uses its upstream npm release and Arch provides Bun. The builder verifies source checksums and indexes the resulting binary packages in `pkgs/local-repo/arche.db.tar.zst`. The empty optional CUDA metapackage validates its dependency transaction with `pacman -Sp --needed` and packages metadata with `makepkg --nodeps`, avoiding GPU-driver installation and DKMS execution on the builder. The default packages use full dependency installation. Root invocations create a temporary builder with passwordless sudo for pacman only; normal users use their existing sudo access. The builder and its sudoers rule are removed at exit, and the build host pacman configuration is restored. The build rewrites the `[arche]` stanza in the profile's `pacman.conf` to point at the generated local repository for mkarchiso. Run it again after moving the checkout. Use fresh archiso work/output and package staging directories for each build; a nonempty package staging directory is rejected to prevent publishing stale artifacts.
 
-The local repository contains unsigned packages built with the ISO and has a scoped `SigLevel = Optional TrustAll`; official Arch repositories continue to require signatures. The installer copies this repository into the target so its package sources remain accessible after reboot. New installers verify and enable the signed rolling channel at the end of installation when its first snapshot is available. Existing installations can [enable rolling updates](rolling-updates.md).
+The build host uses a local staging repository. The live USB boots Linux LTS and includes firmware, networking, the rolling-channel helper and release key. Both installer paths verify the signed public channel before changing disks and fetch the selected desktop packages during installation. The target retains its selected kernels and the signed channel for future upgrades. Existing installations can [enable rolling updates](rolling-updates.md).
+
+Use the ISO build date for the filename and release title. If a second snapshot is published on the same day, supply a distinct release tag such as `rolling-YYYYMMDD.2`. Each snapshot has its own download URL and signed checksum.
 
 ## Install and recover
 
@@ -76,7 +78,7 @@ Both servers bind to loopback. User units normally stop at logout; enable linger
 
 `tests/check.sh` checks shell syntax, source checksums, rollback edge cases, and formats a disposable sparse file to inspect XFS geometry. `arche-smoke-test` checks image binaries, LSP registration and parser loading and measures warm interactive shell startup over 20 samples. The median must stay below 15 ms for Bash and Fish and below 100 ms for Zsh with Oh My Zsh, the bureau theme and the default plugins.
 
-Before publishing an ISO, install in a disposable QEMU VM with both UEFI and BIOS firmware. Verify both kernel entries boot, then run:
+Before publishing an ISO, install in a disposable QEMU VM with both UEFI and BIOS firmware. Verify the USB boots LTS and both default installed kernel entries boot, then run:
 
 ```sh
 findmnt -no FSTYPE,OPTIONS /

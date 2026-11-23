@@ -121,7 +121,6 @@ partition_unattended() {
 main() {
   parse_options "$@"
   (( EUID == 0 )) || fail 'Run as root from the Arche live ISO.'
-  [[ -f /usr/share/arche/repo/arche.db ]] || fail 'Missing bundled package repository; run scripts/build-repo.sh before building the ISO.'
   for repository in core extra; do
     [[ -n $(pacman-conf --repo "$repository" Server) ]] || fail "No servers configured for $repository; enable a mirror before installing."
   done
@@ -129,6 +128,7 @@ main() {
   # mkarchiso removes build-host key material; initialize fresh live trust.
   pacman-key --init
   pacman-key --populate archlinux
+  arche-enable-rolling
   echo 'Arche Linux: XFS, Zen + LTS, ZRAM, terminal and agent tools.'
   lsblk -o NAME,SIZE,TYPE,FSTYPE,MOUNTPOINTS
   if [[ $UNATTENDED == false ]]; then ask DISK 'Target disk (absolute /dev/ path): '; fi
@@ -176,12 +176,10 @@ main() {
     mkdir -p "$CHROOT/boot"
     mount "$EFI_PARTITION" "$CHROOT/boot"
   fi
-  # The local repository is present inside the ISO and usable by pacstrap.
+  # pacstrap verifies downloads with the live keyring.
   pacstrap -K "$CHROOT" arche-base arche-tui-stack arche-agentic-core arche-zsh
   write_fstab
   prepare_user_skeleton
-  mkdir -p "$CHROOT/usr/share/arche/repo"
-  cp -a /usr/share/arche/repo/. "$CHROOT/usr/share/arche/repo/"
   cp /etc/pacman.conf "$CHROOT/etc/pacman.conf"
   install -Dm644 /etc/os-release "$CHROOT/etc/os-release"
   printf 'Arche Linux \n' > "$CHROOT/etc/issue"
@@ -205,8 +203,8 @@ main() {
   printf '%%wheel ALL=(ALL:ALL) ALL\n' > "$CHROOT/etc/sudoers.d/10-wheel"
   chmod 440 "$CHROOT/etc/sudoers.d/10-wheel"
   arch-chroot "$CHROOT" systemctl enable NetworkManager.service paccache.timer
+  arch-chroot "$CHROOT" arche-enable-rolling
   setup_bootloader
-  arch-chroot "$CHROOT" arche-enable-rolling --if-published
   echo 'Installation complete. Unmount /mnt recursively and reboot; inference services are opt-in.'
 }
 if [[ ${BASH_SOURCE[0]} == "$0" ]]; then

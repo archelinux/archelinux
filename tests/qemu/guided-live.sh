@@ -40,7 +40,11 @@ arch-chroot /mnt getent passwd tester | grep -F /bin/zsh
 
 # Autologin and the serial probe belong only to this disposable guest.
 mkdir -p /mnt/etc/systemd/system/getty@tty1.service.d
-printf '[Service]\nExecStart=\nExecStart=-/usr/bin/agetty --autologin tester --noclear %%I $TERM\n' > /mnt/etc/systemd/system/getty@tty1.service.d/test.conf
+cat > /mnt/etc/systemd/system/getty@tty1.service.d/test.conf <<'GETTY'
+[Service]
+ExecStart=
+ExecStart=-/usr/bin/agetty --autologin tester --noclear %I $TERM
+GETTY
 cat > /mnt/usr/local/bin/arche-qa-desktop <<'CHECK'
 #!/usr/bin/env bash
 set -eu

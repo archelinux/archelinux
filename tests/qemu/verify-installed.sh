@@ -61,9 +61,8 @@ systemctl is-active NetworkManager paccache.timer
 systemctl is-enabled NetworkManager paccache.timer
 test -z "$(find /home/arche/.config \( ! -user arche -o ! -group arche \) -print -quit)"
 ls -l /home/arche/.config/sway/config /home/arche/.config/waybar/config.jsonc
-grep -Fx 'output * bg /usr/share/arche/graphite.jpg fill' /home/arche/.config/sway/config
-cmp /usr/share/arche/graphite.jpg /run/arche-test/graphite.jpg
-cmp /usr/share/arche/twin-blades.jpg /run/arche-test/graphite.jpg
+grep -Fx 'output * bg /usr/share/arche/twin-blades.jpg fill' /home/arche/.config/sway/config
+cmp /usr/share/arche/twin-blades.jpg /run/arche-test/twin-blades.jpg
 cmp /usr/share/arche/logo.svg /run/arche-test/logo.svg
 for package in arche-base arche-tui-stack arche-agentic-core; do
   if pacman -Ql "$package" | grep ' /etc/skel/'; then exit 1; fi

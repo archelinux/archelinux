@@ -158,7 +158,7 @@ def main():
     for filename in ("guest-control.sh", "guest-live.sh", "verify-installed.sh"):
         shutil.copyfile(ROOT / "tests/qemu" / filename, share / filename)
     shutil.copyfile(ROOT / "airootfs/root/arche-smoke.lua", share / "arche-smoke.lua")
-    shutil.copyfile(ROOT / "pkgs/arche-tui-stack/graphite.jpg", share / "graphite.jpg")
+    shutil.copyfile(ROOT / "pkgs/arche-tui-stack/twin-blades.jpg", share / "twin-blades.jpg")
     shutil.copyfile(ROOT / "assets/arche-logo.svg", share / "logo.svg")
     vm = None
     try:

@@ -8,7 +8,7 @@ The recommended system is a keyboard-driven Sway desktop with Zsh, Oh My Zsh, Ne
 
 ## Install
 
-archelinux 2.0.0 starts its guided archinstall 4.5 installer on TTY1.
+The ISO starts the guided archinstall installer on TTY1. The rolling installer enables the signed stable channel at the end of setup. After your first login, run `sudo pacman -Syu` to update the installed system.
 
 1. Download and verify the signed ISO as instructed on its release page, then write it to installation media.
 2. Boot the console and connect to the network. Use NetworkManager or `nmcli` if needed.

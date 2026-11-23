@@ -2,7 +2,7 @@
 
 archelinux is a rolling-release Arch-based distro for people who still think in i3 keybindings. Boot the USB, pick a disk and your tools, and log in to a SwayFX desktop with Zsh, tmux and Neovim. The configs are ordinary files in your home directory.
 
-[Download the 2.0.0 installation ISO](https://github.com/archelinux/archelinux/releases/tag/v2.0.0) · [Install guide](docs/getting-started.md) · [Update an installed system](docs/rolling-updates.md) · [Build it yourself](docs/architecture.md)
+[Download the current installation ISO](https://archelinux.github.io/archelinux.org/download/) · [Install guide](docs/getting-started.md) · [Update an installed system](docs/rolling-updates.md) · [Build it yourself](docs/architecture.md)
 
 ![The idle desktop with Waybar and the Twin Blades wallpaper](assets/screenshots/archelinux-desktop.jpg)
 

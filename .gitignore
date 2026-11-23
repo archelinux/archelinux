@@ -9,3 +9,5 @@
 /out/
 
 __pycache__/
+
+/airootfs/usr/share/arche/installer/

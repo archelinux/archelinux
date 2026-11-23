@@ -1,0 +1,12 @@
+--- a/themes/bureau.zsh-theme
++++ b/themes/bureau.zsh-theme
+@@ -121,7 +121,8 @@
+ 
+ bureau_precmd () {
+   _1SPACES=`get_space $_1LEFT $_1RIGHT`
+-  print
++  [[ -z ${arche_bureau_prompt_seen-} ]] || print
++  arche_bureau_prompt_seen=1
+   print -rP "$_1LEFT$_1SPACES$_1RIGHT"
+ }
+ 

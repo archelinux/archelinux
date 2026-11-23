@@ -5,6 +5,10 @@ ROOT_OPTIONS=rw,noatime,nodiratime,logbufs=8,logbsize=256k,allocsize=64M
 
 fail() { echo "arche-install: $*" >&2; exit 1; }
 ask() { read -r -p "$2" "$1"; }
+prepare_user_skeleton() {
+  cp -a "$CHROOT/usr/share/arche/skel/." "$CHROOT/etc/skel/"
+  install -m644 "$CHROOT/usr/share/arche/zshrc" "$CHROOT/etc/skel/.zshrc"
+}
 valid_locale() {
   awk -v locale="$LOCALE" '
     { sub(/^[[:space:]]*#[[:space:]]*/, ""); if ($1 == locale && $2 == "UTF-8") found=1 }
@@ -149,7 +153,11 @@ main() {
     [[ $(readlink -f "$EFI_PARTITION") != "$(readlink -f "$ROOT_PARTITION")" ]] || fail 'Root and EFI must differ'
     (( $(blockdev --getsize64 "$EFI_PARTITION") >= 1073741824 )) || fail 'EFI partition needs at least 1 GiB for both kernels'
   fi
-  if [[ $UNATTENDED == false ]]; then ask HOST_NAME 'Hostname: '; fi
+  if [[ $UNATTENDED == false ]]; then
+    local hostname_input
+    ask hostname_input "Hostname [$HOST_NAME]: "
+    HOST_NAME=${hostname_input:-$HOST_NAME}
+  fi
   [[ $HOST_NAME =~ ^[a-zA-Z0-9][a-zA-Z0-9-]{0,62}$ ]] || fail 'Invalid hostname'
   if [[ $UNATTENDED == false ]]; then ask NORMAL_USER 'Username: '; fi
   [[ $NORMAL_USER =~ ^[a-z_][a-z0-9_-]*$ && $NORMAL_USER != root ]] || fail 'Invalid username'
@@ -169,9 +177,9 @@ main() {
     mount "$EFI_PARTITION" "$CHROOT/boot"
   fi
   # The local repository is present inside the ISO and usable by pacstrap.
-  pacstrap -K "$CHROOT" arche-base arche-tui-stack arche-agentic-core
+  pacstrap -K "$CHROOT" arche-base arche-tui-stack arche-agentic-core arche-zsh
   write_fstab
-  cp -a "$CHROOT/usr/share/arche/skel/." "$CHROOT/etc/skel/"
+  prepare_user_skeleton
   mkdir -p "$CHROOT/usr/share/arche/repo"
   cp -a /usr/share/arche/repo/. "$CHROOT/usr/share/arche/repo/"
   cp /etc/pacman.conf "$CHROOT/etc/pacman.conf"
@@ -185,7 +193,7 @@ main() {
   arch-chroot "$CHROOT" hwclock --systohc
   # pacstrap uses normal kernel presets, never the live archiso initramfs config.
   arch-chroot "$CHROOT" mkinitcpio -P
-  arch-chroot "$CHROOT" useradd -m -U -k /usr/share/arche/skel -G wheel -s /bin/zsh "$NORMAL_USER"
+  arch-chroot "$CHROOT" useradd -m -U -k /etc/skel -G wheel -s /bin/zsh "$NORMAL_USER"
   if [[ $LOCKED_ACCOUNTS == false ]]; then
     arch-chroot "$CHROOT" passwd "$NORMAL_USER"
     arch-chroot "$CHROOT" passwd root
@@ -200,4 +208,13 @@ main() {
   setup_bootloader
   echo 'Installation complete. Unmount /mnt recursively and reboot; inference services are opt-in.'
 }
-if [[ ${BASH_SOURCE[0]} == "$0" ]]; then main "$@"; fi
+if [[ ${BASH_SOURCE[0]} == "$0" ]]; then
+  for arg in "$@"; do
+    if [[ $arg == --unattended ]]; then main "$@"; exit; fi
+  done
+  [[ -f /usr/share/arche/installer/archinstall/arche.py ]] || fail 'Missing Archelinux installer runtime'
+  pacman-key --init
+  pacman-key --populate archlinux
+  export PYTHONPATH=/usr/share/arche/installer
+  exec python -P -m archinstall "$@"
+fi

@@ -10,17 +10,19 @@ xwayland enable
 
 # Import Arch's session environment integration, then apply Arche defaults.
 include /etc/sway/config.d/*
-default_border none 0
-default_floating_border none 0
-for_window [all] border none 0
+default_border pixel 1
+default_floating_border pixel 1
+for_window [all] border pixel 1
 titlebar_border_thickness 0
 titlebar_padding 0 0
 gaps inner 9
-client.focused #000000 #000000 #ffffff #000000 #000000
-client.focused_inactive #000000 #000000 #8c8c8c #000000 #000000
-client.unfocused #000000 #000000 #8c8c8c #000000 #000000
+gaps outer 4
+gaps horizontal 8
+client.focused #998f9f #202226 #ffffff #998f9f #998f9f
+client.focused_inactive #34363a #202226 #c4c7ca #34363a #34363a
+client.unfocused #34363a #202226 #c4c7ca #34363a #34363a
 client.urgent #000000 #000000 #ffffff #000000 #000000
-output * bg /usr/share/arche/wallpaper.svg fill
+output * bg /usr/share/arche/twin-blades.jpg fill
 
 exec mako
 exec swayidle -w timeout 900 'swaylock -f -c 000000' timeout 905 'swaymsg "output * power off"' resume 'swaymsg "output * power on"' before-sleep 'swaylock -f -c 000000'

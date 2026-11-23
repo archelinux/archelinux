@@ -4,10 +4,26 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+  workflow_call:
 permissions:
   contents: read
 jobs:
+  installer:
+    name: "Test Package: arche-install"
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Exercise the packaged archinstall entry point and guided menu
+        run: |
+          pacman -Syu --needed --noconfirm archinstall patch
+          ./scripts/prepare-installer.sh
+          export PYTHONPATH="$PWD/airootfs/usr/share/arche/installer"
+          python -P -m archinstall --help
+          python -P tests/guided-installer.py
   iso:
+    name: "Test: ISO Build"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -24,7 +40,19 @@ jobs:
               losetup --find
               bash tests/check.sh
               ./scripts/build-repo.sh
+              PYTHONPATH=/workspace/airootfs/usr/share/arche/installer python -P tests/guided-installer.py
               mkarchiso -v -w /tmp/archiso-tmp -o /workspace/out /workspace
+              bash tests/iso-repository.sh /workspace/out/*.iso
+              target=/tmp/archiso-tmp/x86_64/airootfs
+              mount --bind "$target" "$target"
+              mount --bind /var/cache/pacman/pkg "$target/var/cache/pacman/pkg"
+              arch-chroot "$target" env PYTHONPATH=/usr/share/arche/installer python -P -m archinstall --help
+              # Exercise the full workspace in the disposable target after sealing the console ISO.
+              arch-chroot "$target" pacman-key --init
+              arch-chroot "$target" pacman-key --populate archlinux
+              arch-chroot "$target" pacman -Sy --needed --noconfirm arche-tui-stack arche-agentic-core
+              install -m644 tests/workspace-update.sh "$target/root/arche-workspace-update.sh"
+              arch-chroot "$target" bash /root/arche-workspace-update.sh
               arch-chroot /tmp/archiso-tmp/x86_64/airootfs /bin/bash /root/arche-smoke-test
               arch-chroot /tmp/archiso-tmp/x86_64/airootfs /bin/bash /root/arche-desktop-smoke
             '
@@ -33,3 +61,25 @@ jobs:
           name: archelinux-iso
           path: out/*.iso
           if-no-files-found: error
+  boot-release:
+    needs: iso
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: archelinux-iso
+          path: out
+      - name: Boot the candidate and install the recommended workspace
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends qemu-system-x86 qemu-utils ovmf
+          sudo python3 tests/qemu/guided.py out/*.iso /tmp/arche-guest
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: archelinux-boot-check
+          path: |
+            /tmp/arche-guest/*.png
+            /tmp/arche-guest/*.log
+            /tmp/arche-guest/share/install.log

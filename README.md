@@ -1,71 +1,28 @@
-# Archelinux
+# archelinux
 
-**An Arch-based Linux distribution with a preconfigured Sway environment.**
+archelinux is an Arch-based distro for people who still think in i3 keybindings. Boot the USB, pick a disk and your tools, and log in to a SwayFX desktop with Zsh, tmux and Neovim. The configs are ordinary files in your home directory.
 
-Arche brings together keyboard-driven window management, a minimal interface,
-and a terminal environment ready for development. It is built for people who
-want a working tiling setup from the first login and ordinary configuration
-files they can change themselves.
+[Download 2.0.0](https://github.com/archelinux/archelinux/releases/tag/v2.0.0) · [Install guide](docs/getting-started.md) · [Build it yourself](docs/architecture.md)
 
-[Download](https://github.com/archelinux/archelinux/releases/latest)
- · [Getting started](docs/getting-started.md)
- · [Build documentation](docs/architecture.md)
- · [Issues](https://github.com/archelinux/archelinux/issues)
+![The idle desktop with Waybar and the Twin Blades wallpaper](assets/screenshots/archelinux-desktop.jpg)
 
-![Archelinux running Sway with a compact top bar and the Arche logo centered on black](https://github.com/archelinux/archelinux/releases/download/v2.0.0-rc1/e2e-live-desktop.png)
+The installer starts with XFS, optional LUKS encryption, and the Zen and LTS kernels. Keep the recommended workspace or clear the tool selection for a console install. The USB carries archelinux’s own pacman repository. Arch dependencies download from mirrors as you install.
 
-## The environment
+## At the keyboard
 
-- **Work from the keyboard.** Sway tiles your windows and organizes them into
-  workspaces. A shared set of shortcuts connects window, terminal pane, and
-  editor navigation.
-- **A minimal interface.** Borderless windows, a compact Waybar, and Fuzzel for
-  launching applications. The default appearance adapts Litho Dark, with the
-  Arche logo on a black background.
-- **Ready to work.** Shell navigation, search, project environment hooks, and
-  clipboard integration are configured together. Neovim and Tmux are included,
-  along with language servers and syntax parsers.
-- **Yours to configure.** User settings are copied into your home at installation.
-  Edit them directly, replace the defaults, and install what you need with pacman.
+- **Super+Enter** opens Foot. **Super+D** opens Fuzzel. Move between tiles with **Super+H/J/K/L**.
+- Zsh starts with the Oh My Zsh `bureau` prompt. Use **Right** to accept a suggestion and **Esc Esc** to add `sudo`.
+- Neovim runs LazyVim with `archevim`, a dark colorscheme with a black file tree. **Ctrl+H/J/K/L** moves between editor splits and tmux panes.
+- Choose `gh`, GitHub notifications for Waybar, language servers, developer runtimes, or the NVIDIA CUDA bundle in the installer. You can also add a bundle later with pacman.
 
-Sway is the tiling Wayland compositor that provides window management. Archelinux
-is the distribution that packages and configures the system around it.
+![Neovim with its file tree open beside Git history and Alacritty](assets/screenshots/archelinux-development.jpg)
 
-## Underneath
+![Four SwayFX tiles showing Neovim, btop, Git history and Zsh](assets/screenshots/archelinux-tiling.jpg)
 
-Arche uses Arch's rolling package base, with Zen and LTS kernels, an XFS root
-filesystem with reflink support, and compressed ZRAM swap. An LTS boot entry,
-console sessions on TTY2–6, and cached package versions provide recovery options.
-You maintain the system as an Arch user; package rollback does not replace backups.
+Twin Blades wallpaper from [dharmx/walls](https://github.com/dharmx/walls/blob/e8d8a42e4fbecb2cf9619995edbc7ce19610bbd8/anime/aeb9uhrbr41a1.webp). The Waybar theme draws on [okubax/dotfiles](https://github.com/okubax/dotfiles).
 
-See the [architecture guide](docs/architecture.md) for package lists, system
-configuration, optional local inference services, and build instructions.
+## Hardware reports
 
-## Try Archelinux
+Tell us which GPU, kernel and display setup you used, especially for NVIDIA, multi-monitor setups or suspend. [Open an issue](https://github.com/archelinux/archelinux/issues).
 
-Download the signed image from [Releases](https://github.com/archelinux/archelinux/releases/latest)
-and follow the [installation guide](docs/getting-started.md). The ISO is published
-in parts; reconstruct and verify it before writing installation media.
-
-Installation requires a network connection and formats the partitions you select.
-The current installer uses XFS and does not support disk encryption.
-
-## Project status
-
-The release passed automated QEMU installation and separate UEFI boots with both
-Zen and LTS. Physical NVIDIA/CUDA, Wi-Fi, suspend/resume, multiple monitors, and
-BIOS installation still need hardware validation.
-
-[Test details](tests/qemu/README.md) · [Test log](tests/install-test.log)
-
-## Contributing
-
-Hardware reports, installation fixes, documentation, and improvements to the
-configured environment are welcome. Include your hardware, kernel, and steps to
-reproduce when [reporting an issue](https://github.com/archelinux/archelinux/issues).
-The [build guide](docs/architecture.md) explains the archiso profile and packages.
-
-Archelinux is licensed under [GPL-3.0](LICENSE). Included software retains its
-upstream licenses. The Sway environment adapts
-[okubax/dotfiles](https://github.com/okubax/dotfiles)' Litho Dark design; its
-attribution and license ship with the terminal package.
+archelinux is [GPL-3.0](LICENSE). Bundled software retains its upstream licenses.

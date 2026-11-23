@@ -1,0 +1,396 @@
+diff --git a/archinstall/lib/args.py b/archinstall/lib/args.py
+index 9b4b75d..0dc74e2 100644
+--- a/archinstall/lib/args.py
++++ b/archinstall/lib/args.py
+@@ -16,6 +16,7 @@ from urllib.request import Request, urlopen
+ from pydantic import TypeAdapter
+ from pydantic.dataclasses import dataclass as p_dataclass
+ 
++from archinstall.arche import DEFAULT_TOOLS, normalize_tools, validate_tools
+ from archinstall.lib.crypt import decrypt, encrypt
+ from archinstall.lib.log import debug, error, logger, warn
+ from archinstall.lib.menu.util import get_password
+@@ -27,7 +28,6 @@ from archinstall.lib.models.device import DiskEncryption, DiskLayoutConfiguratio
+ from archinstall.lib.models.locale import LocaleConfiguration
+ from archinstall.lib.models.mirrors import MirrorConfiguration
+ from archinstall.lib.models.network import NetworkConfiguration
+-from archinstall.lib.models.package_types import DEFAULT_KERNEL
+ from archinstall.lib.models.packages import Repository
+ from archinstall.lib.models.pacman import PacmanConfiguration
+ from archinstall.lib.models.profile import ProfileConfiguration
+@@ -92,6 +92,7 @@ class ArchConfigType(StrEnum):
+ 	NTP = auto()
+ 	TIMEZONE = auto()
+ 	SERVICES = auto()
++	ARCHE_TOOLS = auto()
+ 	PACKAGES = auto()
+ 	PACMAN_CONFIG = auto()
+ 	CUSTOM_COMMANDS = auto()
+@@ -116,8 +117,9 @@ class ArchConfig:
+ 	app_config: ApplicationConfiguration | None = None
+ 	auth_config: AuthenticationConfiguration | None = None
+ 	swap: ZramConfiguration | None = None
+-	hostname: str = 'archlinux'
+-	kernels: list[str] = field(default_factory=lambda: [DEFAULT_KERNEL.value])
++	hostname: str = 'archelinux'
++	arche_tools: list[str] = field(default_factory=lambda: DEFAULT_TOOLS.copy())
++	kernels: list[str] = field(default_factory=lambda: ['linux-zen', 'linux-lts'])
+ 	firmware_optdeps: list[str] = field(default_factory=list)
+ 	ntp: bool = True
+ 	packages: list[str] = field(default_factory=list)
+@@ -169,6 +171,7 @@ class ArchConfig:
+ 			ArchConfigType.TIMEZONE: self.timezone,
+ 			ArchConfigType.SERVICES: self.services,
+ 			ArchConfigType.PACKAGES: self.packages,
++			ArchConfigType.ARCHE_TOOLS: self.arche_tools,
+ 			ArchConfigType.CUSTOM_COMMANDS: self.custom_commands,
+ 		}
+ 
+@@ -209,6 +212,10 @@ class ArchConfig:
+ 	@classmethod
+ 	def from_config(cls, args_config: dict[str, Any], args: Arguments) -> Self:
+ 		arch_config = cls()
++		if args_config.get('arche_shell', 'zsh') != 'zsh':
++			raise ValueError('Archelinux uses Zsh as the login shell')
++		arch_config.arche_tools = normalize_tools(args_config.get('arche_tools', arch_config.arche_tools))
++		validate_tools(arch_config.arche_tools)
+ 
+ 		arch_config.locale_config = LocaleConfiguration.parse_arg(args_config)
+ 
+diff --git a/archinstall/lib/configuration.py b/archinstall/lib/configuration.py
+index d554730..72e8d7b 100644
+--- a/archinstall/lib/configuration.py
++++ b/archinstall/lib/configuration.py
+@@ -1,5 +1,6 @@
+ import readline
+ 
++from archinstall.arche import installation_review
+ from archinstall.lib.args import USER_CONFIG_FILE, USER_CREDS_FILE, ArchConfig
+ from archinstall.lib.log import debug
+ from archinstall.lib.menu.helpers import Confirmation, Selection
+@@ -10,17 +11,16 @@ from archinstall.tui.result import ResultType
+ 
+ 
+ async def confirm_config(config: ArchConfig) -> bool:
+-	header = f'{tr("The specified configuration will be applied")}. '
+-	header += tr('Would you like to continue?') + '\n'
+-
++	header = tr('Review the target disk and software. Start installation?')
+ 	group = MenuItemGroup.yes_no()
+-	group.set_preview_for_all(lambda _: config.user_config_to_json())
++	group.set_focus_by_value(False)
++	group.set_preview_for_all(lambda _: installation_review(config))
+ 
+ 	result = await Confirmation(
+ 		group=group,
+ 		header=header,
+ 		allow_skip=False,
+-		preset=True,
++		preset=False,
+ 		preview_location='bottom',
+ 		preview_header=tr('Configuration preview'),
+ 	).show()
+diff --git a/archinstall/lib/disk/default_layouts.py b/archinstall/lib/disk/default_layouts.py
+index 2df9298..b6d42f1 100644
+--- a/archinstall/lib/disk/default_layouts.py
++++ b/archinstall/lib/disk/default_layouts.py
+@@ -64,28 +64,6 @@ def _boot_partition(sector_size: SectorSize, using_gpt: bool) -> PartitionModifi
+ 	)
+ 
+ 
+-async def select_main_filesystem_format() -> FilesystemType:
+-	items = [
+-		MenuItem(FilesystemType.BTRFS.value, value=FilesystemType.BTRFS),
+-		MenuItem(FilesystemType.EXT4.value, value=FilesystemType.EXT4),
+-		MenuItem(FilesystemType.XFS.value, value=FilesystemType.XFS),
+-		MenuItem(FilesystemType.F2FS.value, value=FilesystemType.F2FS),
+-	]
+-
+-	group = MenuItemGroup(items, sort_items=False)
+-	result = await Selection[FilesystemType](
+-		group,
+-		header=tr('Select main filesystem'),
+-		allow_skip=False,
+-	).show()
+-
+-	match result.type_:
+-		case ResultType.Selection:
+-			return result.get_value()
+-		case _:
+-			raise ValueError('Unhandled result type')
+-
+-
+ async def select_mount_options() -> list[str]:
+ 	prompt = tr('Would you like to use compression or disable CoW?') + '\n'
+ 	compression = tr('Use compression')
+@@ -146,7 +124,7 @@ async def suggest_single_disk_layout(
+ 	separate_home: bool | None = None,
+ ) -> DeviceModification:
+ 	if not filesystem_type:
+-		filesystem_type = await select_main_filesystem_format()
++		filesystem_type = FilesystemType.XFS
+ 
+ 	sector_size = device.device_info.sector_size
+ 	total_size = device.device_info.total_size
+@@ -262,7 +240,7 @@ async def suggest_multi_disk_layout(
+ 	mount_options = []
+ 
+ 	if not filesystem_type:
+-		filesystem_type = await select_main_filesystem_format()
++		filesystem_type = FilesystemType.XFS
+ 
+ 	# find proper disk for /home
+ 	possible_devices = [d for d in devices if d.device_info.total_size >= min_home_partition_size]
+@@ -367,7 +345,7 @@ async def suggest_lvm_layout(
+ 	mount_options = []
+ 
+ 	if not filesystem_type:
+-		filesystem_type = await select_main_filesystem_format()
++		filesystem_type = FilesystemType.XFS
+ 
+ 	if filesystem_type == FilesystemType.BTRFS:
+ 		prompt = tr('Would you like to use BTRFS subvolumes with a default structure?') + '\n'
+diff --git a/archinstall/lib/disk/partitioning_menu.py b/archinstall/lib/disk/partitioning_menu.py
+index d4d7c4b..3642a57 100644
+--- a/archinstall/lib/disk/partitioning_menu.py
++++ b/archinstall/lib/disk/partitioning_menu.py
+@@ -419,7 +419,7 @@ class PartitioningList(ListManager[DiskSegment]):
+ 		return mountpoint
+ 
+ 	async def _prompt_partition_fs_type(self, prompt: str | None = None) -> FilesystemType:
+-		fs_types = filter(lambda fs: fs != FilesystemType.CRYPTO_LUKS, FilesystemType)
++		fs_types = (FilesystemType.XFS, FilesystemType.FAT32, FilesystemType.LINUX_SWAP)
+ 		items = [MenuItem(fs.value, value=fs) for fs in fs_types]
+ 		group = MenuItemGroup(items, sort_items=False)
+ 
+diff --git a/archinstall/lib/global_menu.py b/archinstall/lib/global_menu.py
+index e8e3cc8..1b89003 100644
+--- a/archinstall/lib/global_menu.py
++++ b/archinstall/lib/global_menu.py
+@@ -1,5 +1,6 @@
+ from typing import override
+ 
++from archinstall.arche import root_layout_error, select_tools
+ from archinstall.default_profiles.profile import GreeterType
+ from archinstall.lib.applications.application_menu import ApplicationMenu
+ from archinstall.lib.args import ArchConfig
+@@ -82,7 +83,7 @@ class GlobalMenu(AbstractMenu[None]):
+ 				key='mirror_config',
+ 			),
+ 			MenuItem(
+-				text=tr('Disk configuration'),
++				text=tr('Disk configuration') + ' (XFS and encryption)',
+ 				action=self._select_disk_config,
+ 				preview_action=self._prev_disk_config,
+ 				mandatory=True,
+@@ -119,7 +120,7 @@ class GlobalMenu(AbstractMenu[None]):
+ 			),
+ 			MenuItem(
+ 				text=tr('Hostname'),
+-				value='archlinux',
++				value='archelinux',
+ 				action=select_hostname,
+ 				preview_action=self._prev_hostname,
+ 				key='hostname',
+@@ -146,7 +147,7 @@ class GlobalMenu(AbstractMenu[None]):
+ 			MenuItem(
+ 				text=tr('Network configuration'),
+ 				action=select_network,
+-				value={},
++				value=NetworkConfiguration(type=NicType.NM),
+ 				preview_action=self._prev_network_config,
+ 				key='network_config',
+ 			),
+@@ -157,6 +158,12 @@ class GlobalMenu(AbstractMenu[None]):
+ 				preview_action=self._prev_pacman_config,
+ 				key='pacman_config',
+ 			),
++			MenuItem(
++				text='Arche software',
++				action=select_tools,
++				key='arche_tools',
++				preview_action=self._prev_additional_pkgs,
++			),
+ 			MenuItem(
+ 				text=tr('Additional packages'),
+ 				action=self._select_additional_packages,
+@@ -216,6 +223,8 @@ class GlobalMenu(AbstractMenu[None]):
+ 			return item.has_value()
+ 
+ 		missing = set()
++		if disk_error := root_layout_error(self._item_group.find_by_key('disk_config').value):
++			missing.add(disk_error)
+ 
+ 		if (auth_config is None or auth_config.root_enc_password is None) and not (auth_config and auth_config.has_superuser()):
+ 			missing.add(
+diff --git a/archinstall/lib/installer.py b/archinstall/lib/installer.py
+index f6b0b2b..958e943 100644
+--- a/archinstall/lib/installer.py
++++ b/archinstall/lib/installer.py
+@@ -157,7 +157,7 @@ class Installer:
+ 			# We avoid printing /mnt/<log path> because that might confuse people if they note it down
+ 			# and then reboot, and an identical log file will be found in the ISO medium anyway.
+ 			print(tr('[!] A log file has been created here: {}').format(logger.path))
+-			print(tr('Please submit this issue (and file) to https://github.com/archlinux/archinstall/issues'))
++			print(tr('Please submit this issue (and file) to https://github.com/archelinux/archelinux/issues'))
+ 
+ 			# Return None to propagate the exception
+ 			return None
+@@ -177,7 +177,7 @@ class Installer:
+ 			warn(f' - {step}')
+ 
+ 		warn(f'Detailed error logs can be found at: {logger.directory}')
+-		warn('Submit this zip file as an issue to https://github.com/archlinux/archinstall/issues')
++		warn('Submit this zip file as an issue to https://github.com/archelinux/archelinux/issues')
+ 
+ 		self.sync_log_to_install_medium()
+ 		return False
+@@ -1218,7 +1218,7 @@ class Installer:
+ 			f"""\
+ 			# Created by: archinstall
+ 			# Created on: {self.init_time}
+-			title	Arch Linux ({{kernel}})
++			title	Archelinux ({{kernel}})
+ 			linux	/vmlinuz-{{kernel}}
+ 			initrd	/initramfs-{{kernel}}.img
+ 			options {' '.join(self._get_kernel_params(root))}
+@@ -1523,7 +1523,7 @@ class Installer:
+ 						' --create'
+ 						f' --disk {parent_dev_path}'
+ 						f' --part {efi_partition.partn}'
+-						' --label "Arch Linux Limine Bootloader"'
++						' --label "Archelinux Limine Bootloader"'
+ 						f" --loader '{loader_path}'"
+ 						' --unicode'
+ 						' --verbose',
+@@ -1587,7 +1587,7 @@ class Installer:
+ 					f'path: boot():/EFI/Linux/arch-{kernel}.efi',
+ 					f'cmdline: {kernel_params}',
+ 				]
+-				config_contents += f'\n/Arch Linux ({kernel})\n'
++				config_contents += f'\n/Archelinux ({kernel})\n'
+ 				config_contents += '\n'.join(f'    {it}' for it in entry) + '\n'
+ 			else:
+ 				entry = [
+@@ -1596,7 +1596,7 @@ class Installer:
+ 					f'cmdline: {kernel_params}',
+ 					f'module_path: {path_root}:/initramfs-{kernel}.img',
+ 				]
+-				config_contents += f'\n/Arch Linux ({kernel})\n'
++				config_contents += f'\n/Archelinux ({kernel})\n'
+ 				config_contents += '\n'.join(f'    {it}' for it in entry) + '\n'
+ 
+ 		config_path.write_text(config_contents)
+@@ -1643,7 +1643,7 @@ class Installer:
+ 			'--part',
+ 			str(boot_partition.partn),
+ 			'--label',
+-			'Arch Linux ({kernel})',
++			'Archelinux ({kernel})',
+ 			'--loader',
+ 			loader,
+ 			'--unicode',
+@@ -1711,7 +1711,7 @@ class Installer:
+ 
+ 		for kernel in self.kernels:
+ 			if uki_enabled:
+-				entry = f'"Arch Linux ({kernel}) UKI" "{kernel_params}"'
++				entry = f'"Archelinux ({kernel}) UKI" "{kernel_params}"'
+ 			else:
+ 				if boot_on_root:
+ 					# Kernels are in /boot subdirectory of root filesystem
+@@ -1729,7 +1729,7 @@ class Installer:
+ 				else:
+ 					# Kernels are at root of their partition (ESP or separate boot partition)
+ 					initrd_path = f'initrd=\\initramfs-{kernel}.img'
+-				entry = f'"Arch Linux ({kernel})" "{kernel_params} {initrd_path}"'
++				entry = f'"Archelinux ({kernel})" "{kernel_params} {initrd_path}"'
+ 
+ 			config_contents.append(entry)
+ 
+diff --git a/archinstall/lib/menu/abstract_menu.py b/archinstall/lib/menu/abstract_menu.py
+index 7ad3b83..b6ad438 100644
+--- a/archinstall/lib/menu/abstract_menu.py
++++ b/archinstall/lib/menu/abstract_menu.py
+@@ -52,7 +52,7 @@ class AbstractMenu[ValueT](InstanceRunnable[ValueT]):
+ 		# TODO: skip processing when it comes from a planified exit
+ 		if exc_type is not None:
+ 			error(str(exc_value))
+-			print('Please submit this issue (and file) to https://github.com/archlinux/archinstall/issues')
++			print('Please submit this issue (and file) to https://github.com/archelinux/archelinux/issues')
+ 
+ 			# Return None to propagate the exception
+ 			return
+diff --git a/archinstall/main.py b/archinstall/main.py
+index 36885db..2a2965b 100644
+--- a/archinstall/main.py
++++ b/archinstall/main.py
+@@ -180,7 +180,7 @@ def _error_message(exc: Exception) -> None:
+ 	text = textwrap.dedent(
+ 		"""\
+ 		Archinstall experienced the above error. If you think this is a bug, please report it to
+-		https://github.com/archlinux/archinstall and include the log file "/var/log/archinstall/install.log".
++		https://github.com/archelinux/archelinux/issues and include the log file "/var/log/archinstall/install.log".
+ 
+ 		Hint: To upload the log and get a shareable URL, run
+ 		archinstall share-log
+diff --git a/archinstall/scripts/guided.py b/archinstall/scripts/guided.py
+index 8bceabe..1e79b86 100644
+--- a/archinstall/scripts/guided.py
++++ b/archinstall/scripts/guided.py
+@@ -2,6 +2,7 @@ import os
+ import sys
+ import time
+ 
++from archinstall.arche import prepare_target, root_layout_error
+ from archinstall.lib.applications.application_handler import ApplicationHandler
+ from archinstall.lib.args import ArchConfig, ArchConfigHandler
+ from archinstall.lib.authentication.authentication_handler import AuthenticationHandler
+@@ -19,7 +20,6 @@ from archinstall.lib.models import Bootloader
+ from archinstall.lib.models.device import DiskLayoutType, EncryptionType
+ from archinstall.lib.models.users import User
+ from archinstall.lib.network.network_handler import install_network_config
+-from archinstall.lib.packages.util import check_version_upgrade
+ from archinstall.lib.profile.profiles_handler import profile_handler
+ from archinstall.lib.translationhandler import tr
+ from archinstall.tui.components import tui
+@@ -29,19 +29,12 @@ def show_menu(
+ 	arch_config_handler: ArchConfigHandler,
+ 	mirror_list_handler: MirrorListHandler,
+ ) -> None:
+-	upgrade = check_version_upgrade()
+-	title_text = 'Archlinux'
+-
+-	if upgrade:
+-		text = tr('New version available') + f': {upgrade}'
+-		title_text += f' ({text})'
+-
+ 	global_menu = GlobalMenu(
+ 		arch_config_handler.config,
+ 		mirror_list_handler,
+ 		arch_config_handler.args.skip_boot,
+ 		advanced=arch_config_handler.args.advanced,
+-		title=title_text,
++		title='archelinux',
+ 	)
+ 
+ 	result: ArchConfig | None = tui.run(global_menu)
+@@ -111,6 +104,8 @@ def perform_installation(
+ 		if mirror_config := config.mirror_config:
+ 			installation.set_mirrors(mirror_list_handler, mirror_config, on_target=True)
+ 
++		prepare_target(installation, config)
++
+ 		if config.swap and config.swap.enabled:
+ 			installation.setup_swap(algo=config.swap.algorithm)
+ 
+@@ -213,6 +208,9 @@ def main(arch_config_handler: ArchConfigHandler | None = None) -> None:
+ 	if not arch_config_handler.args.silent:
+ 		show_menu(arch_config_handler, mirror_list_handler)
+ 
++	if disk_error := root_layout_error(arch_config_handler.config.disk_config):
++		raise ValueError(disk_error)
++
+ 	arch_config_handler.config.write_debug()
+ 	arch_config_handler.config.save()
+ 

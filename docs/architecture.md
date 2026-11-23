@@ -1,6 +1,14 @@
 # Architecture and maintenance
 
-An Arch-based system for Neovim, tmux, and local agent workflows. TTY1 starts Sway on normal user login, with a borderless Litho Dark desktop and a centered Arche logo on black. TTY2–6 remain console recovery sessions. No display manager, Oh My Zsh, or model server is started automatically.
+An Arch-based system for Neovim, tmux, and local agent workflows. TTY1 starts Sway on normal user login, with a titlebar-free Litho Dark desktop with a one-pixel focus outline and a subtle Arche logo over dark violet gradients. TTY2–6 remain console recovery sessions. The new installer provisions Zsh with Oh My Zsh. Local model services are opt-in.
+
+## Guided installer in new builds
+
+The live console starts a downstream adaptation of Arch's [archinstall 4.5 source](https://github.com/archlinux/archinstall/tree/78982a624824aa415f59bf88c515676a589e3c55). During the build, `scripts/prepare-installer.sh` copies the official Python runtime and translations into the ISO and applies the patch in `installer/`. Upstream handles partitioning, encryption, bootloader setup and credentials. The Arche menu adds software choices, which are included in the saved configuration and final review. Guided layouts use XFS, including when encrypted. New accounts use the packaged `arche-zsh` environment. Its pinned Oh My Zsh sources and license are packaged locally, and updates go through pacman. The ISO carries the Arche repository and obtains selected Arch packages over the network.
+
+The guided path installs `arche-workspace-defaults` for user configuration and `arche-maintenance` for package recovery. Neither requires a desktop or pins a kernel. The complete compatibility packages remain available. Selecting local inference also installs the optional service definitions. Selecting NVIDIA DKMS installs headers for the selected kernels.
+
+The fixed XFS layout, mount tuning and unattended QEMU path described below refer to the earlier installer. Its explicit `--unattended` interface remains available to existing callers.
 
 ## Architecture
 
@@ -16,38 +24,36 @@ An Arch-based system for Neovim, tmux, and local agent workflows. TTY1 starts Sw
 | --- | --- |
 | `arche-base` | Base development tools, both kernels, firmware, XFS, ZRAM, NetworkManager, cache retention and rollback |
 | `arche-tui-stack` | Sway, top Waybar, Fuzzel, Mako, fonts/audio controls, tmux, terminals, CLI tools, shells, Neovim and preinstalled language servers |
-| `arche-agentic-core` | uv, pinned AUR bun-bin, cargo-binstall, ast-grep, tree-sitter-cli, disabled inference user units |
+| `arche-agentic-core` | uv, Bun from Arch extra, cargo-binstall, ast-grep, tree-sitter-cli, disabled inference user units |
 | `arche-cuda` | Optional nvidia-open-dkms, nvidia-utils, Arch's `cuda` toolkit and cudnn |
 
-`pkgs/*/PKGBUILD` are the canonical dependency lists. `packages.x86_64` adds only live-media tools. CUDA is built as a metapackage but excluded from the default image and installation. `arche-base` provides `paccache-hook` with a locally maintained hook backed by `pacman-contrib`; there is no additional AUR hook dependency.
+`pkgs/*/PKGBUILD` are the canonical dependency lists. `packages.x86_64` defines the live console image. The ISO carries the optional arche-cuda metapackage in its local repository. The driver, toolkit and cuDNN download from Arch mirrors when selected. `arche-maintenance` provides `paccache-hook` with a locally maintained hook backed by `pacman-contrib`; there is no additional AUR hook dependency.
 
 Live configuration overrides and package-owned files are linked into package sources with SHA-256 checksums. Package-owned `/usr` files live in `pkgs/*/files/`, outside the live overlay, so archiso does not pre-create files that pacman must install. After changing an overlay source, update its PKGBUILD checksum (`updpkgsums` from `pacman-contrib`). Package templates live under `/usr/share/arche/skel` to avoid colliding with Bash-owned skeleton files. The installer copies these into `/etc/skel` before creating the user. Installing metapackages on an existing Arch system does not overwrite user dotfiles; copy the templates explicitly.
 
-The TUI package generates `zoxide init --cmd cd SHELL` and `direnv hook SHELL` once at build time and compiles the Zsh hook loader. Shell startup sources those files, sets `EDITOR=nvim` and `FZF_DEFAULT_COMMAND`, and runs no plugin manager. Rebuild the package when upgrading hook generators to refresh their output. Interactive prompt hooks still perform the intended directory tracking and environment checks.
+The TUI package generates `zoxide init --cmd cd SHELL` and `direnv hook SHELL` once at build time and compiles the Zsh hook loader. Shell startup sources those files, sets `EDITOR=nvim` and `FZF_DEFAULT_COMMAND`, when the relevant tools are installed. The guided install initializes Oh My Zsh before loading these hooks. Rebuild the package when upgrading hook generators to refresh their output. Interactive prompt hooks still perform the intended directory tracking and environment checks.
 
-Neovim uses its built-in LSP API (0.11+) with no Mason or plugin download. Lua, C, Vim, Vimdoc, query, Python and Rust parsers are installed; Python and Rust have baseline highlight queries. Other filetypes retain standard syntax highlighting; Go has its preinstalled LSP. Inside Wayland, Neovim uses wl-copy/wl-paste for system clipboard synchronization. In console/SSH sessions, OSC 52 copies through supported terminals/tmux and paste uses the local yank register. Ctrl-h/j/k/l navigates Neovim windows and adjacent tmux panes.
+Neovim starts LazyVim with the dark `archevim` colorscheme. On first launch, lazy.nvim downloads plugins into the user’s data directory. Language servers are selected through the installer and use Neovim’s LSP API. Lua, C, Vim, Vimdoc, query, Python and Rust parsers are installed; Python and Rust have baseline highlight queries. Other filetypes retain standard syntax highlighting; Go has its preinstalled LSP. Inside Wayland, Neovim uses wl-copy/wl-paste for system clipboard synchronization. In console/SSH sessions, OSC 52 copies through supported terminals/tmux and paste uses the local yank register. Ctrl-h/j/k/l navigates Neovim windows and adjacent tmux panes.
 
 ## Build
 
-Use a disposable privileged **Arch Linux** container or Arch build host with several tens of GiB free. The scripts install build dependencies and require network access to Arch mirrors, AUR and upstream Bun releases.
+Use a disposable privileged **Arch Linux** container or Arch build host with several tens of GiB free. The scripts install build dependencies and require network access to Arch mirrors and the upstream SwayFX and Basedpyright releases.
 
 ```sh
 pacman -Syu --needed archiso grub git python python-yaml shellcheck xfsprogs
 bash tests/check.sh
 bash scripts/build-repo.sh
 mkarchiso -v -w /tmp/archiso-tmp -o /tmp/archiso-out .
-arch-chroot /tmp/archiso-tmp/x86_64/airootfs /bin/bash /root/arche-smoke-test
+PYTHONPATH="$PWD/airootfs/usr/share/arche/installer" python -P tests/guided-installer.py
 ```
 
-Run these from the repository root. `build-repo.sh` builds all four packages as an unprivileged user, runs namcap, and builds bun-bin plus basedpyright-bin (which provides basedpyright) from pinned AUR revisions with upstream source checksums. Bun and Basedpyright are built and indexed first in `pkgs/local-repo/arche.db.tar.zst`. Internal packages then build in base/TUI/agentic/CUDA order with `makepkg --syncdeps --needed --noconfirm`, refreshing the local database after each package. The empty optional CUDA metapackage validates its dependency transaction with `pacman -Sp --needed` and packages metadata with `makepkg --nodeps`, avoiding GPU-driver installation and DKMS execution on the builder. The default packages use full dependency installation. Root invocations create a temporary builder with passwordless sudo for pacman only; normal users use their existing sudo access. The builder and its sudoers rule are removed at exit, and the build host pacman configuration is restored. The build rewrites the `[arche]` stanza in the profile's `pacman.conf` to point at the generated local repository and generates the live image's corresponding configuration. Run it again after moving the checkout. Use fresh archiso work/output and package staging directories for each build; a nonempty package staging directory is rejected to prevent publishing stale artifacts.
+Run these from the repository root. `build-repo.sh` builds and lints the repository's PKGBUILDs as an unprivileged user. SwayFX uses the upstream tagged source archive. Basedpyright uses its upstream npm release and Arch provides Bun. The builder verifies source checksums and indexes the resulting binary packages in `pkgs/local-repo/arche.db.tar.zst`. The empty optional CUDA metapackage validates its dependency transaction with `pacman -Sp --needed` and packages metadata with `makepkg --nodeps`, avoiding GPU-driver installation and DKMS execution on the builder. The default packages use full dependency installation. Root invocations create a temporary builder with passwordless sudo for pacman only; normal users use their existing sudo access. The builder and its sudoers rule are removed at exit, and the build host pacman configuration is restored. The build rewrites the `[arche]` stanza in the profile's `pacman.conf` to point at the generated local repository and generates the live image's corresponding configuration. Run it again after moving the checkout. Use fresh archiso work/output and package staging directories for each build; a nonempty package staging directory is rejected to prevent publishing stale artifacts.
 
 The local repository contains unsigned packages built with the ISO and has a scoped `SigLevel = Optional TrustAll`; official Arch repositories continue to require signatures. The installer copies this repository into the target so its package sources remain accessible after reboot. Configure a signed release repository for future Arche package updates.
 
 ## Install and recover
 
-Boot the ISO, connect using `nmcli`, and run `/root/arche-install` (also offered on tty1). The installer opens `cfdisk`; create a root partition of at least 16 GiB and a 1 GiB EFI system partition for UEFI. BIOS/GPT also needs a BIOS boot partition. The installer validates distinct unmounted partitions and asks for `ERASE` before formatting. Partition changes made in cfdisk take effect when you explicitly write them.
-
-Locale defaults to `en_US.UTF-8`; timezone defaults to UTC. The installer initializes pacman's keyring, rebuilds normal installed-system initramfs images, creates the user, enables NetworkManager and paccache, and installs the bootloader. A network connection is required for official packages. The interactive path uses cfdisk. An explicit unattended UEFI mode is available for disk-installation testing; see ../tests/qemu/README.md. Encryption and non-XFS roots are not supported.
+Use the [installation guide](getting-started.md) for the current console ISO and the earlier published image. The former unattended XFS installer is exercised by the [legacy boot test](../tests/qemu/README.md).
 
 Use the LTS boot entry when Zen fails after an update. Use `sudo arche-rollback PACKAGE` for a cached older package. Reflink workspaces can be created with `cp -a --reflink=always SOURCE DESTINATION` on the same XFS filesystem.
 
@@ -60,11 +66,11 @@ systemctl --user enable --now ollama.service
 # ~/.config/arche/llama-server.env, then enable llama-server.service.
 ```
 
-Both servers bind to loopback. User units normally stop at logout; enable lingering explicitly if desired. For supported NVIDIA hardware, install `arche-cuda` after configuring a repository containing it.
+Both servers bind to loopback. User units normally stop at logout; enable lingering explicitly if desired. For supported NVIDIA hardware, choose `arche-cuda` in the installer or run `sudo pacman -S arche-cuda` after installation.
 
 ## CI and releases
 
-`build-iso.yml` runs Docker explicitly on Ubuntu with `--privileged` and `/dev:/dev`, checks loop-device availability, and runs package build/lint, mkarchiso and runtime smoke tests. ISOs are written into the workspace `out/` directory for artifact upload. `release.yml` uses the same package preparation for manual ISO releases. `release-pkgs.yml` builds packages without signing secrets, then signs them in a separate `package-release` environment and publishes an immutable GitHub Release tag.
+`build-iso.yml` runs Docker explicitly on Ubuntu with `--privileged` and `/dev:/dev`, checks loop-device availability, and runs package build/lint, mkarchiso and runtime smoke tests. ISOs are written into the workspace `out/` directory for artifact upload. `release.yml` calls the build workflow, waits for the QEMU installation and desktop boot to pass, then signs the ISO from that run. `release-pkgs.yml` builds packages without signing secrets, then signs them in a separate `package-release` environment and publishes an immutable GitHub Release tag.
 
 Configure these environment secrets before running package publication:
 
@@ -84,7 +90,7 @@ Each immutable tag includes signed package archives, signed `arche.db` / `arche.
 
 ## Verification status and VM acceptance
 
-`tests/check.sh` checks shell syntax, source checksums, rollback edge cases, and formats a disposable sparse file to inspect XFS geometry. `arche-smoke-test` checks image binaries, LSP registration and parser loading and reports 20-sample warm shell startup medians, enforcing the requested 15 ms budget. Runner load and hardware affect that budget; it is not a universal latency guarantee.
+`tests/check.sh` checks shell syntax, source checksums, rollback edge cases, and formats a disposable sparse file to inspect XFS geometry. `arche-smoke-test` checks image binaries, LSP registration and parser loading and measures warm interactive shell startup over 20 samples. The median must stay below 15 ms for Bash and Fish and below 100 ms for Zsh with Oh My Zsh, the bureau theme and the default plugins.
 
 Before publishing an ISO, install in a disposable QEMU VM with both UEFI and BIOS firmware. Verify both kernel entries boot, then run:
 
@@ -100,38 +106,18 @@ systemctl --user is-enabled ollama llama-server  # disabled
 nvim example.lua                   # :checkhealth vim.lsp, :InspectTree
 ```
 
-Local validation on 2026-11-11 completed metapackage builds, namcap (with expected
-metapackage dependency warnings), repository indexing, and a privileged Arch
-Docker mkarchiso build. The final candidate contains arche-tui-stack 2.0.0-9.
-
-The automated QEMU/KVM test installed onto a fresh 25 GiB disk with a 1 GiB ESP,
-removed the ISO, and cold-booted Zen and LTS separately. Both passed the XFS
-geometry/reflink and mount checks, EFI entry and rootflag checks, ZRAM/sysctl
-checks, service activation, user ownership, Neovim LSP/parser checks (including
-an unseeded SVG filetype), and Sway desktop startup. No system units failed.
-The final run required no manual input.
-
-The complete run history is in tests/install-test.log. Generated artifacts are
-out/archelinux-2026.11.10-x86_64.iso and out/SHA256SUMS. Updated VM screenshots
-are out/e2e-live-desktop.png, out/e2e-installed-desktop.png,
-out/e2e-fuzzel-neovim.png, out/e2e-storage-terminal.png, and
-out/e2e-lts-desktop.png. The retained test disk is out/e2e-rc5/target.qcow2.
-
-Warm shell startup medians in the final image were Bash 1.90 ms, Zsh 1.13 ms,
-and Fish 6.20 ms on this host. These measurements are not a hardware-independent
-latency guarantee. BIOS installation and physical NVIDIA/CUDA, Wi-Fi,
-suspend/resume, and multi-monitor behavior remain unverified. The hosted GitHub Actions ISO build has passed. The signed
-[Archelinux 2.0.0 release](https://github.com/archelinux/archelinux/releases/tag/v2.0.0-rc1)
-is public, with ISO reconstruction instructions, package repository setup,
-signatures, checksums, and the new public release key. Physical hardware
-validation remains outstanding.
+The release job boots the sealed ISO under UEFI, installs to a fresh XFS disk,
+removes the ISO, and boots the installed system. The guest checks the hostname,
+the user’s Zsh configuration, the running SwayFX compositor and Waybar. Build
+logs, the installer screenshot and the installed desktop screenshot are available
+in the GitHub Actions run. For the older dual-kernel acceptance run, see
+[the recorded QEMU log](../tests/install-test.log).
 
 ## Sway / Litho Dark
 
 The selected desktop adapts [okubax/dotfiles](https://github.com/okubax/dotfiles)'s
-Litho Dark palette and centered top Waybar clusters. Provenance and the upstream
-license are installed in `/usr/share/doc/arche-tui-stack/`. Window borders are
-disabled for both tiled and floating clients. Applications that draw their own
+Litho Dark palette and inset Waybar panel with a centered clock. Provenance and the upstream
+license are installed in `/usr/share/doc/arche-tui-stack/`. Tiled and floating windows have a one-pixel outline. The recommended SwayFX compositor adds backdrop blur and gives Waybar and windows a nine-pixel corner radius. The workspace highlight sits eight pixels inside the panel and has a three-pixel radius. Applications that draw their own
 internal chrome remain responsible for that chrome.
 
 Super+Return opens Foot; Super+d opens Fuzzel; Super+Shift+q closes a window;
@@ -147,10 +133,7 @@ not a guarantee for every driver. No hook is added to the live root installer.
 new user's home and assigns their ownership. Package templates never claim
 Bash-owned `/etc/skel` files.
 
-The default background is a pure-black SVG wallpaper with the text-free Arche
-symbol centered at 640 units tall on a 3840×2160 canvas. Run
-`python3 scripts/make-wallpaper.py` to regenerate it from `assets/arche-logo.svg`.
-Sway uses `/usr/share/arche/wallpaper.svg` directly.
+Sway fills the output with Twin Blades from `/usr/share/arche/twin-blades.jpg`. The artwork comes from the [dharmx/walls collection](https://github.com/dharmx/walls/blob/e8d8a42e4fbecb2cf9619995edbc7ce19610bbd8/anime/aeb9uhrbr41a1.webp). Artist and redistribution license are unverified.
 
 For automated UEFI installation acceptance on a disposable qcow2 disk, see
 [QEMU installation tests](../tests/qemu/README.md).

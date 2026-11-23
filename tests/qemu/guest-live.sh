@@ -14,6 +14,7 @@ for _ in {1..60}; do
   sleep 2
 done
 /root/arche-install --unattended --disk /dev/vda --erase-disk /dev/vda --username arche --hostname arche-test --locale en_US.UTF-8 --locked-accounts
+cmp /mnt/usr/share/arche/zshrc /mnt/home/arche/.zshrc
 # Remove the test-only cache URL from the installed system.
 sed -i '\|^CacheServer = file:///run/arche-test/cache$|d' /mnt/etc/pacman.d/mirrorlist
 # Add a VM-only control service and tty autologin, leaving shipped defaults intact.

@@ -8,13 +8,14 @@ import tempfile
 root = Path(__file__).resolve().parents[1]
 skel = root / 'pkgs/arche-tui-stack/files/usr/share/arche/skel'
 sway = (skel / '.config/sway/config').read_text()
-assert 'default_border none' in sway
-assert 'default_floating_border none' in sway
-assert 'for_window [all] border none' in sway
-assert 'output * bg /usr/share/arche/wallpaper.svg fill' in sway
+assert 'default_border pixel 1' in sway
+assert 'default_floating_border pixel 1' in sway
+assert 'for_window [all] border pixel 1' in sway
+assert 'output * bg /usr/share/arche/twin-blades.jpg fill' in sway
 assert 'output eDP-1' not in sway
 bar = json.loads((skel / '.config/waybar/config.jsonc').read_text())
-assert bar['position'] == 'top' and bar['modules-center'][0] == 'sway/workspaces'
+assert bar['position'] == 'top' and bar['modules-left'][0] == 'sway/workspaces'
+assert bar['modules-center'] == ['clock'] and 'custom/github' in bar['modules-right']
 assert '@import url("litho-dark.css")' in (skel / '.config/waybar/style.css').read_text()
 with tempfile.TemporaryDirectory() as directory:
     directory = Path(directory)

@@ -1,0 +1,16 @@
+# Maintainer: Arche Linux maintainers
+pkgname=arche-swayfx
+pkgver=1.0.0
+pkgrel=8
+pkgdesc='Rounded window corners for the archelinux SwayFX session'
+arch=('any')
+url='https://github.com/archelinux/archelinux'
+license=('GPL-3.0-only')
+depends=('swayfx')
+backup=('etc/sway/config.d/90-arche-corners.conf')
+source=('90-arche-corners.conf')
+sha256sums=('8f74ac6b40568ba48e95f97b9f0108b296919ea6a135eaa9368d395bb419d46d')
+
+package() {
+  install -Dm644 "$srcdir/90-arche-corners.conf" "$pkgdir/etc/sway/config.d/90-arche-corners.conf"
+}

@@ -158,7 +158,7 @@ def main():
     for filename in ("guest-control.sh", "guest-live.sh", "verify-installed.sh"):
         shutil.copyfile(ROOT / "tests/qemu" / filename, share / filename)
     shutil.copyfile(ROOT / "airootfs/root/arche-smoke.lua", share / "arche-smoke.lua")
-    shutil.copyfile(ROOT / "assets/arche-wallpaper-4k.svg", share / "wallpaper.svg")
+    shutil.copyfile(ROOT / "pkgs/arche-tui-stack/twin-blades.jpg", share / "twin-blades.jpg")
     shutil.copyfile(ROOT / "assets/arche-logo.svg", share / "logo.svg")
     vm = None
     try:
@@ -178,12 +178,15 @@ def main():
             vm.type("mkdir -p /run/arche-test\nmount -t 9p -o trans=virtio,version=9p2000.L archetest /run/arche-test\n")
             vm.type("systemd-run --unit=arche-test-control bash /run/arche-test/guest-control.sh\n")
             job(work, "live-user", """
+pacman-key --init
+pacman-key --populate archlinux
+pacman -Sy --needed --noconfirm arche-tui-stack
 useradd -m -U -k /usr/share/arche/skel -G video,input -s /bin/zsh archepreview
 mkdir -p /etc/systemd/system/getty@tty1.service.d
 printf '[Service]\\nExecStart=\\nExecStart=-/usr/bin/agetty --autologin archepreview --noclear %%I $TERM\\n' > /etc/systemd/system/getty@tty1.service.d/override.conf
 systemctl daemon-reload
 systemctl restart getty@tty1
-""")
+""", timeout=1800)
             desktop_ready(work, "live-desktop-ready", "archepreview")
             time.sleep(3)
             vm.screenshot("e2e-live-desktop.png")
@@ -206,7 +209,7 @@ systemctl restart getty@tty1
         vm.type("nvim /usr/share/arche/logo.svg\n")
         time.sleep(3)
         vm.key("esc")
-        vm.type(":vsplit /usr/share/arche/wallpaper.svg\n")
+        vm.type(":vsplit ~/.config/sway/config\n")
         time.sleep(2)
         vm.key("meta_l-d")
         time.sleep(2)

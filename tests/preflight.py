@@ -37,7 +37,11 @@ for filename, server in [('pacman.conf', '/workspace/pkgs/local-repo'), ('airoot
 for path in (root / '.github/workflows').glob('*.yml'):
     workflow = yaml.safe_load(path.read_text())
     assert workflow.get('jobs'), path
-    for job in workflow['jobs'].values():
+    for name, job in workflow['jobs'].items():
+        if 'uses' in job:
+            assert (path.name, name, job['uses']) == ('release.yml', 'verify', './.github/workflows/build-iso.yml')
+            assert workflow['jobs']['release']['needs'] == name
+            continue
         assert job['runs-on'] == 'ubuntu-latest'
         assert isinstance(job['steps'], list)
 iso = yaml.safe_load((root / '.github/workflows/build-iso.yml').read_text())['jobs']['iso']
@@ -53,14 +57,15 @@ assert release['jobs']['build']['steps'][-1]['with']['path'] == 'pkgs/local-repo
 # Each recipe is also copied with dereferenced inputs, as in the real builder.
 for recipe in (root / 'pkgs').glob('*/PKGBUILD'):
     source_list = subprocess.check_output(['bash', '-c', 'source "$1"; printf "%s\\n" "${source[@]}"', 'bash', str(recipe)], text=True).splitlines()
-    for source in filter(None, source_list):
+    local_sources = [s for s in source_list if s and "::https://" not in s]
+    for source in local_sources:
         assert not source.startswith('/'), (recipe, source)
         assert (recipe.parent / source).is_file(), (recipe, source)
         assert not (recipe.parent / source).resolve().is_relative_to(root / 'airootfs/usr'), \
             'Package-owned /usr files must not be pre-created by the live overlay'
     with tempfile.TemporaryDirectory() as temp:
         subprocess.run(['cp', '-rL', str(recipe.parent) + '/.', temp], check=True)
-        for source in filter(None, source_list):
+        for source in local_sources:
             assert (Path(temp) / source).is_file()
 print('Repository trust, portable PKGBUILD inputs and workflow pre-flight checks passed')
 

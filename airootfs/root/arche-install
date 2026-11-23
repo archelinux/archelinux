@@ -206,6 +206,7 @@ main() {
   chmod 440 "$CHROOT/etc/sudoers.d/10-wheel"
   arch-chroot "$CHROOT" systemctl enable NetworkManager.service paccache.timer
   setup_bootloader
+  arch-chroot "$CHROOT" arche-enable-rolling --if-published
   echo 'Installation complete. Unmount /mnt recursively and reboot; inference services are opt-in.'
 }
 if [[ ${BASH_SOURCE[0]} == "$0" ]]; then

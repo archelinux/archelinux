@@ -5,7 +5,10 @@ set $mod Mod1
 set $term foot
 set $menu fuzzel
 font pango:JetBrainsMono Nerd Font 10
-# Put your preferred XKB layouts in this optional file.
+# To add a second keyboard layout, put a line like this in keyboard.conf.
+# Replace de with the XKB layout code you want, then reload with Alt+Shift+C.
+# input type:keyboard xkb_layout us,de
+# Super+Space cycles through your configured layouts.
 include ~/.config/sway/keyboard.conf
 floating_modifier $mod normal
 xwayland enable

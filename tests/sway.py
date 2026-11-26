@@ -16,7 +16,8 @@ assert 'output * bg /usr/share/arche/twin-blades.jpg fill' in sway
 assert 'output eDP-1' not in sway
 assert 'set $term foot' in sway.splitlines()
 assert 'include ~/.config/sway/keyboard.conf' in sway.splitlines()
-assert not any(' xkb_layout ' in line for line in sway.splitlines())
+assert '# input type:keyboard xkb_layout us,de' in sway.splitlines()
+assert not any(' xkb_layout ' in line for line in sway.splitlines() if not line.lstrip().startswith('#'))
 assert 'bindsym Mod4+space input type:keyboard xkb_switch_layout next' in sway.splitlines()
 assert 'bindsym --to-code $mod+d exec $menu' in sway.splitlines()
 bar = json.loads((skel / '.config/waybar/config.jsonc').read_text())

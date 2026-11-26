@@ -30,7 +30,7 @@ TOOLS = {
     'git': 'Version control', 'git-delta': 'Readable terminal diffs',
     'lazygit': 'Interactive Git client', 'github-cli': 'GitHub CLI (gh)',
     'arche-waybar-github': 'GitHub PR and issue notifications for Waybar (includes gh)',
-    'yazi': 'Terminal file manager', 'btop': 'Interactive system monitor',
+    'yazi': 'Terminal file manager with removable drive controls', 'btop': 'Interactive system monitor',
     'firefox': 'Mozilla Firefox (Arch package)',
     'google-chrome': 'Google Chrome Stable (Google binary via Flathub)',
     'spotify': 'Spotify desktop app (Flathub)',
@@ -159,6 +159,8 @@ def package_plan(config):
         packages.extend(SWAY_SESSION)
     if sway_session or 'arche-tui-stack' in packages + config.packages:
         packages.extend(DESKTOP_CONTROLS)
+    if 'yazi' in packages + config.packages:
+        packages.append('udisks2')
     if {'ollama', 'llama.cpp'}.intersection(packages + config.packages):
         packages.append('arche-inference-defaults')
     if 'neovim' in packages or 'neovim' in config.packages:

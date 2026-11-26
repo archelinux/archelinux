@@ -63,6 +63,10 @@ for name in sorted(optional_tools):
     restored = ArchConfig.from_config(config.safe_config(), Arguments())
     assert set(package_plan(restored)) & optional_tools == {name}
     assert 'grim' not in package_plan(restored)
+    assert ('udisks2' in package_plan(restored)) == (name == 'yazi')
+assert 'udisks2' not in package_plan(ArchConfig.from_config({}, Arguments()))
+additional_yazi = ArchConfig.from_config({'arche_tools': [], 'packages': ['yazi']}, Arguments())
+assert 'udisks2' in package_plan(additional_yazi)
 for selected in ([], ['spotify'], ['spotify-player'], ['spotify', 'spotify-player'],
                  ['google-chrome'], ['google-chrome', 'spotify', 'firefox']):
     config.arche_tools = selected

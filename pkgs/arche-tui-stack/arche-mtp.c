@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-only */
 #define _POSIX_C_SOURCE 200809L
 
+#include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <inttypes.h>
@@ -13,7 +14,8 @@
 
 static void usage(FILE *stream)
 {
-    fputs("Usage: arche-mtp ls [FOLDER_ID]\n"
+    fputs("Usage: arche-mtp shell\n"
+          "       arche-mtp ls [FOLDER_ID]\n"
           "       arche-mtp put LOCAL_FILE [FOLDER_ID]\n"
           "       arche-mtp get FILE_ID LOCAL_FILE\n", stream);
 }
@@ -84,6 +86,12 @@ static int put_file(LIBMTP_mtpdevice_t *device, const char *path, uint32_t folde
         }
         storage = parent->storage_id;
         LIBMTP_destroy_file_t(parent);
+    } else {
+        if (!device->storage) {
+            fputs("The phone did not expose any storage. Keep it unlocked.\n", stderr);
+            return -1;
+        }
+        storage = device->storage->id;
     }
 
     int fd = open(path, O_RDONLY | O_NONBLOCK);
@@ -105,7 +113,7 @@ static int put_file(LIBMTP_mtpdevice_t *device, const char *path, uint32_t folde
         return -1;
     }
     file->filename = strdup(base ? base + 1 : path);
-    file->parent_id = folder;
+    file->parent_id = folder ? folder : LIBMTP_FILES_AND_FOLDERS_ROOT;
     file->storage_id = storage;
     file->filesize = (uint64_t)st.st_size;
     file->filetype = LIBMTP_FILETYPE_UNKNOWN;
@@ -136,6 +144,94 @@ static int get_file(LIBMTP_mtpdevice_t *device, uint32_t id, const char *path)
     return result;
 }
 
+static void report_error(LIBMTP_mtpdevice_t *device)
+{
+    fputs("MTP operation failed.\n", stderr);
+    LIBMTP_Dump_Errorstack(device);
+}
+
+static char *skip_space(char *text)
+{
+    while (isspace((unsigned char)*text))
+        ++text;
+    return text;
+}
+
+static char *next_word(char **rest)
+{
+    char *word = skip_space(*rest);
+    char *end = word;
+    while (*end && !isspace((unsigned char)*end))
+        ++end;
+    if (*end)
+        *end++ = '\0';
+    *rest = skip_space(end);
+    return word;
+}
+
+/* Keep the device open between commands. Some Android phones reset USB on close. */
+static int interactive(LIBMTP_mtpdevice_t *device)
+{
+    char *line = NULL;
+    size_t capacity = 0;
+    uint32_t folder = 0;
+    int failed = 0;
+    int prompt = isatty(STDIN_FILENO);
+
+    if (prompt)
+        puts("Commands: ls, cd [FOLDER_ID], put LOCAL_FILE, get FILE_ID LOCAL_FILE, quit");
+    for (;;) {
+        if (prompt)
+            fputs("mtp> ", stdout);
+        fflush(stdout);
+        ssize_t length = getline(&line, &capacity, stdin);
+        if (length < 0)
+            break;
+        if (length && line[length - 1] == '\n')
+            line[length - 1] = '\0';
+        char *args = line;
+        char *command = next_word(&args);
+        if (!*command)
+            continue;
+        if (strcmp(command, "quit") == 0 && !*args)
+            break;
+
+        LIBMTP_Clear_Errorstack(device);
+        int result = 0;
+        uint32_t id = 0;
+        if (strcmp(command, "ls") == 0 && !*args) {
+            result = list_files(device, folder ? folder : LIBMTP_FILES_AND_FOLDERS_ROOT);
+        } else if (strcmp(command, "cd") == 0 && (!*args || !parse_id(args, &id))) {
+            if (!id) {
+                folder = 0;
+            } else {
+                LIBMTP_file_t *target = LIBMTP_Get_Filemetadata(device, id);
+                if (target && target->filetype == LIBMTP_FILETYPE_FOLDER)
+                    folder = id;
+                else {
+                    fputs("The destination ID does not identify a folder.\n", stderr);
+                    result = -1;
+                }
+                if (target)
+                    LIBMTP_destroy_file_t(target);
+            }
+        } else if (strcmp(command, "put") == 0 && *args) {
+            result = put_file(device, args, folder);
+        } else if (strcmp(command, "get") == 0 && !parse_id(next_word(&args), &id) && *args) {
+            result = get_file(device, id, args);
+        } else {
+            fputs("Commands: ls, cd [FOLDER_ID], put LOCAL_FILE, get FILE_ID LOCAL_FILE, quit\n", stderr);
+            result = -1;
+        }
+        if (result) {
+            report_error(device);
+            failed = 1;
+        }
+    }
+    free(line);
+    return failed || ferror(stdin) ? -1 : 0;
+}
+
 int main(int argc, char **argv)
 {
     if (argc == 2 && strcmp(argv[1], "--help") == 0) {
@@ -143,9 +239,11 @@ int main(int argc, char **argv)
         return 0;
     }
 
-    enum { LIST, PUT, GET } operation;
+    enum { LIST, PUT, GET, SHELL } operation;
     uint32_t id = 0;
-    if ((argc == 2 || argc == 3) && strcmp(argv[1], "ls") == 0) {
+    if (argc == 2 && strcmp(argv[1], "shell") == 0) {
+        operation = SHELL;
+    } else if ((argc == 2 || argc == 3) && strcmp(argv[1], "ls") == 0) {
         operation = LIST;
         id = LIBMTP_FILES_AND_FOLDERS_ROOT;
         if (argc == 3 && parse_id(argv[2], &id))
@@ -165,16 +263,15 @@ int main(int argc, char **argv)
         return 1;
 
     LIBMTP_Clear_Errorstack(device);
-    int result;
+    int result = -1;
     switch (operation) {
     case LIST: result = list_files(device, id); break;
     case PUT: result = put_file(device, argv[2], id); break;
     case GET: result = get_file(device, id, argv[3]); break;
+    case SHELL: result = interactive(device); break;
     }
-    if (result) {
-        fputs("MTP operation failed.\n", stderr);
-        LIBMTP_Dump_Errorstack(device);
-    }
+    if (result && operation != SHELL)
+        report_error(device);
     LIBMTP_Release_Device(device);
     return result ? 1 : 0;
 

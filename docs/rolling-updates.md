@@ -107,3 +107,8 @@ git -C "$channel" push origin HEAD:refs/heads/rolling-channel
 Use an ordinary fast-forward push. If another promotion lands first, start a fresh checkout and rerun the rehearsal. Recover a bad package through a newer corrected package release. Retain old commits and published archives for existing clients.
 
 The helper pins the current signer. Planned key rotation requires publishing a successor key and updated verifier through the still-trusted channel, then rolling clients forward before retiring the old key. If the old key is lost or suspected compromised, stop promotions and distribute the replacement fingerprint through an independently verified channel.
+
+
+## Networking on systems installed with an older ISO
+
+New installations use iwd, systemd-networkd and systemd-resolved. A package update keeps the networking services and profiles already configured on your system. A desktop template update also leaves your home configuration intact.

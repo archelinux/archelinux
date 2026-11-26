@@ -57,8 +57,12 @@ test "$(sysctl -n vm.dirty_background_ratio)" = 5
 test "$(sysctl -n vm.dirty_ratio)" = 10
 test "$(sysctl -n fs.inotify.max_user_watches)" = 524288
 test "$(sysctl -n fs.inotify.max_user_instances)" = 1024
-systemctl is-active NetworkManager paccache.timer
-systemctl is-enabled NetworkManager paccache.timer
+for service in iwd systemd-networkd systemd-resolved paccache.timer; do
+  systemctl is-active "$service"
+  systemctl is-enabled "$service"
+done
+systemctl is-enabled bluetooth
+test "$(readlink /etc/resolv.conf)" = ../run/systemd/resolve/stub-resolv.conf
 test -z "$(find /home/arche/.config \( ! -user arche -o ! -group arche \) -print -quit)"
 ls -l /home/arche/.config/sway/config /home/arche/.config/waybar/config.jsonc
 grep -Fx 'output * bg /usr/share/arche/twin-blades.jpg fill' /home/arche/.config/sway/config

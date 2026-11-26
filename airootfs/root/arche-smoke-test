@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Run inside the built Arch image, or a freshly installed system.
 set -euo pipefail
-for command in lua-language-server rust-analyzer basedpyright-langserver gopls uv bun cargo-binstall ast-grep; do
+for command in lua-language-server rust-analyzer basedpyright-langserver gopls go gofmt uv bun cargo-binstall ast-grep; do
   command -v "$command"
 done
 paru --version

@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Configure a fresh target using the live network stack.
+set -euo pipefail
+target=${1:?target mount is required}
+source_root=${3:-/}
+install -d "$target/etc/systemd/network"
+if [[ ${2:-} != manual ]]; then
+  for config in 80-arche-wired.network 80-arche-wifi.network; do
+    install -Dm644 "$source_root/etc/systemd/network/$config" "$target/etc/systemd/network/$config"
+  done
+fi
+if [[ ${2:-} == copy ]]; then
+  shopt -s nullglob
+  profiles=("$source_root"/var/lib/iwd/*.{psk,8021x,open})
+  if (( ${#profiles[@]} )); then
+    install -d -m700 "$target/var/lib/iwd"
+    install -m600 -t "$target/var/lib/iwd" -- "${profiles[@]}"
+  fi
+fi
+install -Dm644 "$source_root/etc/tmpfiles.d/arche-resolved.conf" "$target/etc/tmpfiles.d/arche-resolved.conf"
+systemctl --root="$target" enable iwd.service systemd-networkd.service systemd-resolved.service

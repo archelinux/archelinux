@@ -24,10 +24,11 @@ config = {
     'kernels': ['linux-lts'],
     'bootloader_config': {'bootloader': 'Systemd-boot', 'uki': False, 'removable': False},
     'users': [{'username': 'tester', 'sudo': True, 'enc_password': '!'}],
-    'network_config': {'type': 'nm'},
     'disk_config': DiskLayoutConfiguration(DiskLayoutType.Default, [layout]).json(),
 }
-if not Path('/run/arche-test/candidate').exists():
+if Path('/run/arche-test/candidate').exists():
+    config['network_config'] = {'type': 'nm'}  # The published upgrade baseline uses NetworkManager.
+else:
     del config['kernels']  # Exercise the default installed kernel choices on new media.
 Path('/run/arche-qa.json').write_text(json.dumps(config))
 PY
@@ -35,7 +36,15 @@ PY
 if [[ ! -d $share/candidate ]]; then
   [[ $(uname -r) == *-lts && ! -e /usr/share/arche/repo ]]
   [[ $(arch-chroot /mnt pacman-conf --repo arche Server) == https://raw.githubusercontent.com/archelinux/archelinux/rolling-channel/stable ]]
-  arch-chroot /mnt pacman -Q linux-lts linux-zen
+  arch-chroot /mnt pacman -Q linux-lts linux-zen iwd wiremix bluez android-tools android-udev libmtp fastfetch go gopls
+  for service in iwd systemd-networkd systemd-resolved bluetooth; do
+    systemctl --root=/mnt is-enabled "$service"
+  done
+  if systemctl --root=/mnt is-enabled NetworkManager; then exit 1; fi
+  arch-chroot /mnt adb version
+  test -x /mnt/usr/bin/mtp-detect
+  test -f /mnt/usr/lib/udev/rules.d/51-android.rules
+  grep -Fxq 'WLANInterfaceType=station' /mnt/etc/systemd/network/80-arche-wifi.network
   for kernel in linux-lts linux-zen; do
     test -s "/mnt/boot/vmlinuz-$kernel"
     test -s "/mnt/boot/initramfs-$kernel.img"
@@ -73,6 +82,17 @@ done
 test -S "$SWAYSOCK"
 pgrep -u tester -x waybar
 runuser -u tester -- env XDG_RUNTIME_DIR="$XDG_RUNTIME_DIR" SWAYSOCK="$SWAYSOCK" swaymsg -t get_outputs
+if [[ -f /etc/tmpfiles.d/arche-resolved.conf ]]; then
+  for service in iwd systemd-networkd systemd-resolved; do
+    systemctl is-active "$service"
+  done
+  test "$(readlink /etc/resolv.conf)" = ../run/systemd/resolve/stub-resolv.conf
+  for _ in {1..30}; do
+    if getent ahostsv4 archlinux.org; then break; fi
+    sleep 1
+  done
+  getent ahostsv4 archlinux.org
+fi
 echo ARCHE_DESKTOP_READY
 CHECK
 chmod 755 /mnt/usr/local/bin/arche-qa-desktop

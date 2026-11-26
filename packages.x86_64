@@ -4,7 +4,6 @@ linux-lts
 linux-firmware
 intel-ucode
 amd-ucode
-networkmanager
 iwd
 archinstall
 arch-install-scripts

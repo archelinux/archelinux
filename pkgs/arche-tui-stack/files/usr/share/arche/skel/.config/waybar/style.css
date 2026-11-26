@@ -31,7 +31,7 @@ window#waybar > box {
 #window { padding: 0 8px; }
 #clock { color: @fg; }
 #mode, #privacy, #custom-vpn, #custom-disk, #custom-gpu, #cpu, #memory, #wireplumber,
-#network, #battery, #tray, #custom-github { padding: 0 5px; }
+#network, #bluetooth, #language, #battery, #tray, #custom-github { padding: 0 5px; }
 tooltip, tooltip.background {
   background-color: #202124;
   color: @fg;

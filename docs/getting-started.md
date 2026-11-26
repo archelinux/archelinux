@@ -11,8 +11,8 @@ The recommended system is a keyboard-driven Sway desktop with Zsh, Oh My Zsh, Ne
 The ISO starts the guided archinstall installer on TTY1. The rolling installer enables the signed stable channel at the end of setup. After your first login, run `sudo pacman -Syu` to update the installed system.
 
 1. Download and verify the signed ISO as instructed on its release page, then write it to installation media.
-2. Boot the console and connect to the network. Use NetworkManager or `nmcli` if needed.
-3. Open **Arche software** to keep the recommended SwayFX workspace or toggle individual tools with Space. SwayFX supplies nine-pixel window corners and terminal background blur. For stock Sway, clear **arche-swayfx** and select **sway**. Both compositors use a slim mauve focus outline, small gaps and a floating Waybar panel. Optional tools include **github-cli** (`gh`), **yazi** (file manager), **btop** (system monitor) and **paru** (AUR helper). For unread GitHub PRs and issues on the Sway bar, select **arche-waybar-github**, then run `gh auth login` after login. If your token needs notification access, run `gh auth refresh -h github.com -s notifications`. Hover for thread titles or click to open your inbox. Choose **spotify** for the desktop app from Flathub or **spotify-player** for the terminal client (Spotify Premium required). You can select both. Clear the list for a console system. Selecting Sway includes its terminal, launcher, bar, lock, media controls and region screenshots (`grim -g "$(slurp)" - | wl-copy --type image/png`). Select other packages in **Additional packages**.
+2. Boot the console and connect to the network. Ethernet uses DHCP. For Wi-Fi, open `iwctl`, run `device list`, then run `station wlan0 scan`, `station wlan0 get-networks` and `station wlan0 connect "Your SSID"` with the device name from the list. Type `exit` to return to the console. The default install copies saved Wi-Fi profiles to the new system. Choose another mode under **Network configuration** for fresh DHCP or manual addressing.
+3. Open **Arche software** to keep the recommended SwayFX workspace or toggle individual tools with Space. SwayFX supplies nine-pixel window corners and terminal background blur. For stock Sway, clear **arche-swayfx** and select **sway**. Both compositors use a slim mauve focus outline, small gaps and a floating Waybar panel. Optional tools include **github-cli** (`gh`), **yazi** (terminal file manager and removable drive controls), **btop** (system monitor) and **paru** (AUR helper). For unread GitHub PRs and issues on the Sway bar, select **arche-waybar-github**, then run `gh auth login` after login. If your token needs notification access, run `gh auth refresh -h github.com -s notifications`. Hover for thread titles or click to open your inbox. Choose **spotify** for the desktop app from Flathub or **spotify-player** for the terminal client (Spotify Premium required). You can select both. Choose **firefox** for Mozilla Firefox or **google-chrome** for Google Chrome Stable. Chrome is installed through the Flathub wrapper, which fetches Google's binary. Update Chrome with `flatpak update`. Clear the list for a console system. Selecting Sway includes its terminal, launcher, bar, lock, media controls and region screenshots (`grim -g "$(slurp)" - | wl-copy --type image/png`). Select other packages in **Additional packages**.
 4. New accounts start in Zsh with Oh My Zsh, the `bureau` theme and the shell plugins described below. Edit `~/.zshrc` to personalize them.
 5. In **Disk configuration**, select the target and layout. Archelinux uses XFS for the root filesystem. UEFI uses a separate FAT32 EFI partition. Configure LUKS encryption here if wanted and retain your passphrase. The installer does not choose a target disk for you.
 6. Review kernels, bootloader, networking, locale, time zone and authentication. Check the final configuration and selected disk before confirming. Formatting erases the selected partitions.
@@ -24,7 +24,25 @@ Release signing-key fingerprint:
 Verification commands and signed package-repository setup are included in the
 release notes. The [public key](../keys/archelinux-release.asc) is also in this repository.
 
-On first launch, Neovim downloads LazyVim plugins. Run `:Mason` in Neovim to manage language servers and other editor tools. Keep the internet connection active until setup finishes. Change the default `archevim` colorscheme in `~/.config/nvim/lua/plugins/colors.lua`.
+Run `fastfetch` to see system information. The recommended software selection includes Go and Neovim with `gopls` and `gofmt`. On first launch, Neovim downloads LazyVim plugins. Run `:Mason` in Neovim to manage language servers and other editor tools. Keep the internet connection active until setup finishes. Change the default `archevim` colorscheme in `~/.config/nvim/lua/plugins/colors.lua`.
+
+## Desktop controls
+
+- Click the Waybar network indicator to open `iwctl`. On Arch, users in `wheel` or `network` can control iwd.
+- Click the volume indicator to open Wiremix in Foot. Right-click to toggle mute or scroll to change the volume.
+- Click the Bluetooth icon to open `bluetoothctl`. Use `power on`, `scan on` and `pair DEVICE_ADDRESS` to pair a device. If the adapter is missing or disappears after suspend, check `rfkill list bluetooth` and `journalctl -b -k` for driver or firmware messages. You can also try the other installed kernel.
+- To enable keyboard layout switching in Sway, put your preferred XKB layouts in `~/.config/sway/keyboard.conf` and reload with **Alt+Shift+C**. For example, `input type:keyboard xkb_layout us,de` sets up US English and German. Press **Super+Space** or click the language indicator to cycle through your layouts. The first layout determines where the physical keys for Sway shortcuts are mapped.
+Apps that follow the desktop color preference start in dark mode. To choose light mode for your account, run `gsettings set org.gnome.desktop.interface color-scheme prefer-light`. Run `gsettings reset org.gnome.desktop.interface color-scheme` to restore the desktop default.
+
+## Android over USB
+
+All installed profiles include Android file transfer and ADB tools. Connect an unlocked Android phone using a USB data cable and select **File transfer** on the phone. Run `mtp-detect` to check the connection, `mtp-files` to list files, `mtp-getfile FILE_ID LOCAL_PATH` to copy a file from the phone, or `mtp-sendfile LOCAL_PATH DEVICE_PATH` to send one. For development, turn on USB debugging, approve the computer on the phone, and run `adb devices`.
+
+## USB drives and SD cards
+
+If you selected **yazi** during installation, start `yazi` and press **Shift+M** to open the drive menu. Pick a partition, press **m** to mount it, and press **Enter** to browse it. When finished, press **u** to unmount the partition or **e** to eject the drive. Wait for the operation to finish before unplugging it. UDisks handles access on demand.
+
+On an existing install, update the workspace package and install `yazi` and `udisks2`. Copy the `mount.yazi` plugin directory from `/usr/share/arche/skel/.config/yazi/plugins/` into `~/.config/yazi/plugins/` and add the example binding from `/usr/share/arche/skel/.config/yazi/keymap.toml` to your own keymap. Keep any shortcuts you already use.
 
 ## The Zsh workspace
 

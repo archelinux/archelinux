@@ -38,8 +38,9 @@
   "wireplumber": {
     "format": "  {volume}%",
     "format-muted": "  muted",
-    "on-click": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle",
-    "scroll-step": 5
+    "on-click": "foot -e wiremix",
+    "scroll-step": 5,
+    "on-click-right": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"
   },
   "network": {
     "format-wifi": "  {signalStrength}%",
@@ -47,7 +48,8 @@
     "format-disconnected": "  offline",
     "tooltip-format": "{ifname}: {ipaddr}/{cidr}",
     "interval": 10,
-    "tooltip-format-wifi": "{essid} · {ipaddr}/{cidr}"
+    "tooltip-format-wifi": "{essid} · {ipaddr}/{cidr}",
+    "on-click": "foot -e iwctl"
   },
   "custom/github": {
     "exec-if": "test -x /usr/bin/arche-waybar-github",
@@ -98,7 +100,9 @@
     "custom/disk",
     "custom/vpn",
     "network",
+    "bluetooth",
     "tray",
+    "sway/language",
     "wireplumber",
     "battery"
   ],
@@ -134,5 +138,17 @@
     "return-type": "json",
     "interval": 15,
     "hide-empty-text": true
+  },
+  "bluetooth": {
+    "format": "",
+    "format-disabled": " off",
+    "format-no-controller": "",
+    "format-connected": " {num_connections}",
+    "on-click": "foot -e bluetoothctl"
+  },
+  "sway/language": {
+    "format": "{shortDescription}",
+    "tooltip-format": "{long}",
+    "on-click": "swaymsg input type:keyboard xkb_switch_layout next"
   }
 }

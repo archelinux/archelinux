@@ -6,13 +6,19 @@ from archinstall.lib.menu.helpers import Selection
 from archinstall.tui.menu_item import MenuItem, MenuItemGroup
 from archinstall.tui.result import ResultType
 
+DESKTOP_CONTROLS = ['wiremix', 'bluez', 'bluez-utils']
+FLATHUB_APPS = {'spotify': 'com.spotify.Client', 'google-chrome': 'com.google.Chrome'}
+
 # Sway's key bindings, bar and session hooks use these companions.
 SWAY_SESSION = 'foot fuzzel mako swaybg waybar python iproute2 swayidle swaylock xorg-xwayland xdg-desktop-portal-wlr xdg-desktop-portal-gtk grim slurp wl-clipboard librsvg brightnessctl wireplumber playerctl pipewire pipewire-pulse pipewire-alsa ttf-jetbrains-mono-nerd ttf-nerd-fonts-symbols-mono noto-fonts noto-fonts-emoji'.split()
-ALWAYS_INSTALLED = ['arche-workspace-defaults', 'arche-maintenance', 'arche-zsh']
+ALWAYS_INSTALLED = [
+    'arche-workspace-defaults', 'arche-maintenance', 'arche-zsh', 'iwd', 'fastfetch',
+    'android-tools', 'android-udev', 'libmtp',
+]
 TOOLS = {
     'arche-base': 'Full system profile: Zen and LTS kernels and headers, base-devel, firmware and XFS tuning',
     'arche-tui-stack': 'Full terminal desktop: Sway, Foot, tmux, Neovim, language servers and CLI tools',
-    'arche-agentic-core': 'Developer runtimes: Python, uv, Bun, cargo-binstall, ast-grep and tree-sitter CLI',
+    'arche-agentic-core': 'Developer runtimes: Python, Go, uv, Bun, cargo-binstall, ast-grep and tree-sitter CLI',
     'arche-cuda': 'NVIDIA bundle: full base profile, open DKMS driver, CUDA and cuDNN (large Arch downloads)',
     'sway': 'Arche tiling desktop with Foot, Fuzzel, Waybar, audio, screen sharing and locking',
     'arche-swayfx': 'Sway workspace with backdrop blur and rounded window corners (replaces stock Sway)',
@@ -24,13 +30,16 @@ TOOLS = {
     'git': 'Version control', 'git-delta': 'Readable terminal diffs',
     'lazygit': 'Interactive Git client', 'github-cli': 'GitHub CLI (gh)',
     'arche-waybar-github': 'GitHub PR and issue notifications for Waybar (includes gh)',
-    'yazi': 'Terminal file manager', 'btop': 'Interactive system monitor',
+    'yazi': 'Terminal file manager with removable drive controls', 'btop': 'Interactive system monitor',
+    'firefox': 'Mozilla Firefox (Arch package)',
+    'google-chrome': 'Google Chrome Stable (Google binary via Flathub)',
     'spotify': 'Spotify desktop app (Flathub)',
     'spotify-player': 'Terminal Spotify client (Premium required)',
     'jq': 'JSON queries', 'yq': 'YAML queries',
     'wl-clipboard': 'Wayland clipboard', 'xclip': 'X11 clipboard',
     'paru': 'Arch User Repository helper',
     'base-devel': 'Arch package building tools', 'python': 'Python runtime',
+    'go': 'Go toolchain',
     'uv': 'Python project manager', 'bun': 'JavaScript runtime',
     'cargo-binstall': 'Install Rust binaries', 'ast-grep': 'Structural code search',
     'tree-sitter-cli': 'Parser development tools', 'gopls': 'Go language server',
@@ -39,7 +48,7 @@ TOOLS = {
     'llama.cpp': 'GGUF inference tools', 'cuda': 'NVIDIA compute toolkit',
     'cudnn': 'NVIDIA neural network library', 'nvidia-open-dkms': 'NVIDIA open kernel modules',
 }
-DEFAULT_TOOLS = 'arche-swayfx tmux neovim bat eza ripgrep fd fzf zoxide direnv git git-delta lazygit jq base-devel'.split()
+DEFAULT_TOOLS = 'arche-swayfx tmux neovim bat eza ripgrep fd fzf zoxide direnv git git-delta lazygit jq base-devel go'.split()
 
 
 def installation_review(config):
@@ -89,7 +98,7 @@ def installation_review(config):
         lines.append('Enable services: ' + ', '.join(config.services))
     if config.custom_commands:
         lines.append(f'Run {len(config.custom_commands)} custom post-install commands from the supplied configuration.')
-    lines.append('archelinux packages come from the ISO. Arch dependencies download from mirrors.')
+    lines.append('Packages download from signed Arche and Arch repositories. Selected Flatpaks download from Flathub.')
     return '\n'.join(lines)
 
 
@@ -141,16 +150,21 @@ def root_layout_error(layout):
 
 def package_plan(config):
     validate_tools(config.arche_tools)
-    tools = ['flatpak' if name == 'spotify' else name for name in config.arche_tools]
+    tools = ['flatpak' if name in FLATHUB_APPS else name for name in config.arche_tools]
     packages = [*ALWAYS_INSTALLED, *tools]
     if 'arche-swayfx' in packages and 'sway' in packages:
         packages.remove('sway')
-    if {'sway', 'arche-swayfx'}.intersection(packages):
+    sway_session = {'sway', 'arche-swayfx'}.intersection(packages + config.packages)
+    if sway_session:
         packages.extend(SWAY_SESSION)
+    if sway_session or 'arche-tui-stack' in packages + config.packages:
+        packages.extend(DESKTOP_CONTROLS)
+    if 'yazi' in packages + config.packages:
+        packages.append('udisks2')
     if {'ollama', 'llama.cpp'}.intersection(packages + config.packages):
         packages.append('arche-inference-defaults')
     if 'neovim' in packages or 'neovim' in config.packages:
-        packages.extend(['arche-neovim-parsers', 'git', 'unzip', 'gcc', 'tree-sitter-cli', 'ripgrep', 'fd'])
+        packages.extend(['arche-neovim-parsers', 'go', 'gopls', 'git', 'unzip', 'gcc', 'tree-sitter-cli', 'ripgrep', 'fd'])
         packages.extend('tree-sitter-' + lang for lang in ('lua', 'c', 'vim', 'vimdoc', 'query', 'python', 'rust'))
     if {'arche-cuda', 'nvidia-open-dkms'}.intersection(packages + config.packages):
         packages.extend(kernel + '-headers' for kernel in config.kernels)
@@ -164,11 +178,13 @@ def prepare_channel():
 
 def prepare_target(installation, config):
     target = installation.target
-    installation.add_additional_packages(package_plan(config))
+    packages = package_plan(config)
+    installation.add_additional_packages(packages)
     installation.arch_chroot('arche-enable-rolling', peek_output=True)
-    if 'spotify' in config.arche_tools:
+    apps = [FLATHUB_APPS[name] for name in config.arche_tools if name in FLATHUB_APPS]
+    if apps:
         installation.arch_chroot('flatpak remote-add --system --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo')
-        installation.arch_chroot('flatpak install --system --noninteractive flathub com.spotify.Client')
+        installation.arch_chroot('flatpak install --system --noninteractive flathub ' + ' '.join(apps), peek_output=True)
     shutil.copytree(target / 'usr/share/arche/skel', target / 'etc/skel', dirs_exist_ok=True)
     # /etc/os-release can be a vendor symlink. Replace the link itself.
     identity = target / 'etc/os-release'
@@ -177,3 +193,19 @@ def prepare_target(installation, config):
     shutil.copyfile(target / 'usr/share/arche/zshrc', target / 'etc/skel/.zshrc')
     installation.arch_chroot('useradd -D -s /bin/zsh')
     installation.enable_service('paccache.timer')
+    if 'bluez' in packages:
+        installation.enable_service('bluetooth.service')
+
+
+def setup_network(installation, config):
+    from archinstall.lib.models.network import NicType
+
+    mode = {
+        NicType.ISO: 'copy',
+        NicType.IWD: 'fresh',
+        NicType.MANUAL: 'manual',
+    }[config.type if config else NicType.ISO]
+    subprocess.run(['bash', '/usr/share/arche/install-network', str(installation.target), mode], check=True)
+    if mode == 'manual':
+        for nic in config.nics:
+            installation.configure_nic(nic)

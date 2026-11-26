@@ -56,7 +56,7 @@ fi
 # Register the local repository after building its first package.
 privileged cp -p /etc/pacman.conf "$work/pacman.conf.original"
 host_config_saved=true
-for name in basedpyright swayfx arche-zsh arche-base arche-swayfx arche-tui-stack arche-agentic-core arche-cuda; do
+for name in basedpyright paru swayfx arche-zsh arche-base arche-swayfx arche-tui-stack arche-agentic-core arche-cuda; do
   stage_recipe "$root/pkgs/$name" "$work/$name"
   (
     cd "$work/$name"

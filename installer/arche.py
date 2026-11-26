@@ -11,13 +11,13 @@ SWAY_SESSION = 'foot fuzzel mako swaybg waybar python iproute2 swayidle swaylock
 ALWAYS_INSTALLED = ['arche-workspace-defaults', 'arche-maintenance', 'arche-zsh']
 TOOLS = {
     'arche-base': 'Full system profile: Zen and LTS kernels and headers, base-devel, firmware and XFS tuning',
-    'arche-tui-stack': 'Full terminal desktop: Sway, terminals, tmux, Neovim, language servers and CLI tools',
+    'arche-tui-stack': 'Full terminal desktop: Sway, Foot, tmux, Neovim, language servers and CLI tools',
     'arche-agentic-core': 'Developer runtimes: Python, uv, Bun, cargo-binstall, ast-grep and tree-sitter CLI',
     'arche-cuda': 'NVIDIA bundle: full base profile, open DKMS driver, CUDA and cuDNN (large Arch downloads)',
     'sway': 'Arche tiling desktop with Foot, Fuzzel, Waybar, audio, screen sharing and locking',
     'arche-swayfx': 'Sway workspace with backdrop blur and rounded window corners (replaces stock Sway)',
     'tmux': 'Terminal multiplexer', 'neovim': 'LazyVim editor with the archevim colorscheme (first launch downloads plugins)',
-    'foot': 'Wayland terminal', 'alacritty': 'GPU-accelerated terminal',
+    'foot': 'Wayland terminal',
     'bat': 'File viewer with syntax highlighting', 'eza': 'Directory listings',
     'ripgrep': 'Search file contents', 'fd': 'Find files', 'fzf': 'Fuzzy finder',
     'zoxide': 'Directory jumping', 'direnv': 'Per-project environments',
@@ -29,6 +29,7 @@ TOOLS = {
     'spotify-player': 'Terminal Spotify client (Premium required)',
     'jq': 'JSON queries', 'yq': 'YAML queries',
     'wl-clipboard': 'Wayland clipboard', 'xclip': 'X11 clipboard',
+    'paru': 'Arch User Repository helper',
     'base-devel': 'Arch package building tools', 'python': 'Python runtime',
     'uv': 'Python project manager', 'bun': 'JavaScript runtime',
     'cargo-binstall': 'Install Rust binaries', 'ast-grep': 'Structural code search',
@@ -106,7 +107,7 @@ async def select_tools(preset):
 def normalize_tools(tools):
     if not isinstance(tools, list) or not all(isinstance(name, str) for name in tools):
         raise ValueError('Invalid Arche software selection')
-    aliases = {'bun-bin': 'bun', 'basedpyright-bin': 'basedpyright'}
+    aliases = {'bun-bin': 'bun', 'basedpyright-bin': 'basedpyright', 'alacritty': 'foot'}
     return list(dict.fromkeys(aliases.get(name, name) for name in tools))
 
 
@@ -149,7 +150,7 @@ def package_plan(config):
     if {'ollama', 'llama.cpp'}.intersection(packages + config.packages):
         packages.append('arche-inference-defaults')
     if 'neovim' in packages or 'neovim' in config.packages:
-        packages.extend(['arche-neovim-parsers', 'git', 'gcc', 'tree-sitter-cli', 'ripgrep', 'fd'])
+        packages.extend(['arche-neovim-parsers', 'git', 'unzip', 'gcc', 'tree-sitter-cli', 'ripgrep', 'fd'])
         packages.extend('tree-sitter-' + lang for lang in ('lua', 'c', 'vim', 'vimdoc', 'query', 'python', 'rust'))
     if {'arche-cuda', 'nvidia-open-dkms'}.intersection(packages + config.packages):
         packages.extend(kernel + '-headers' for kernel in config.kernels)

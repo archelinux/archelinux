@@ -31,12 +31,17 @@ runuser -u "$account" -- env HOME="$home_dir" TERM=xterm zsh -lic '
 printf '\nZSH_THEME=my-personal-theme\n' >> "$home_dir/.zshrc"
 printf '\nbindsym Mod4+F10 exec foot\n' >> "$home_dir/.config/sway/config"
 files=("$home_dir/.zshrc" "$home_dir/.config/sway/config")
-for config in waybar/style.css waybar/config.jsonc alacritty/alacritty.toml foot/foot.ini nvim/colors/archevim.lua; do
+for config in waybar/style.css waybar/config.jsonc foot/foot.ini nvim/colors/archevim.lua; do
   path="$home_dir/.config/$config"
   cmp "/usr/share/arche/skel/.config/$config" "$path"
   printf '\n' >> "$path"
   files+=("$path")
 done
-before=$(sha256sum "${files[@]}")
+test ! -e "$home_dir/.config/alacritty/alacritty.toml"
+# Existing user-owned terminal configs survive a workspace package upgrade.
+runuser -u "$account" -- mkdir -p "$home_dir/.config/alacritty"
+legacy_config="$home_dir/.config/alacritty/alacritty.toml"
+printf '[window]\npadding = { x = 20, y = 20 }\n' | runuser -u "$account" -- tee "$legacy_config" >/dev/null
+before=$(sha256sum "${files[@]}" "$legacy_config")
 pacman -S --noconfirm arche-zsh arche-workspace-defaults
 sha256sum --check <<< "$before"

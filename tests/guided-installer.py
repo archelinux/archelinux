@@ -25,6 +25,9 @@ for bundle in bundles:
     assert ('linux-headers' in plan) == (bundle == 'arche-cuda')
 legacy = ArchConfig.from_config({'arche_tools': ['bun-bin', 'basedpyright-bin']}, Arguments())
 assert legacy.arche_tools == ['bun', 'basedpyright']
+legacy_terminals = ArchConfig.from_config({'arche_tools': ['alacritty', 'foot']}, Arguments())
+assert legacy_terminals.arche_tools == ['foot']
+assert 'foot' in package_plan(legacy_terminals) and 'alacritty' not in package_plan(legacy_terminals)
 config.arche_tools = ['github-cli']
 assert 'github-cli' in package_plan(config)
 assert ArchConfig.from_config(config.safe_config(), Arguments()).arche_tools == ['github-cli']
@@ -32,7 +35,7 @@ for selection in (['arche-swayfx'], ['sway', 'arche-swayfx']):
     config.arche_tools = selection
     plan = package_plan(config)
     assert {'arche-swayfx', 'foot', 'grim', 'waybar'} <= set(plan) and 'sway' not in plan
-optional_tools = {'yazi', 'btop', 'arche-waybar-github'}
+optional_tools = {'paru', 'yazi', 'btop', 'arche-waybar-github'}
 assert optional_tools.isdisjoint(package_plan(ArchConfig.from_config({}, Arguments())))
 for name in sorted(optional_tools):
     config.arche_tools = [name]
@@ -48,7 +51,7 @@ for selected in ([], ['spotify'], ['spotify-player'], ['spotify', 'spotify-playe
     assert ('flatpak' in plan) == ('spotify' in selected)
     assert ('spotify-player' in plan) == ('spotify-player' in selected)
 config.arche_tools = ['neovim']
-assert {'git', 'gcc', 'tree-sitter-cli', 'fd', 'ripgrep', 'arche-neovim-parsers'} <= set(package_plan(config))
+assert {'git', 'unzip', 'gcc', 'tree-sitter-cli', 'fd', 'ripgrep', 'arche-neovim-parsers'} <= set(package_plan(config))
 # Cancel the first interactive screen. No configuration is written and no disk is touched.
 with patch.object(guided.tui, 'run', return_value=None) as render:
     try:

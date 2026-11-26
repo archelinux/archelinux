@@ -4,6 +4,7 @@ set -euo pipefail
 for command in lua-language-server rust-analyzer basedpyright-langserver gopls uv bun cargo-binstall ast-grep; do
   command -v "$command"
 done
+paru --version
 # archiso moves /boot images onto the ISO boot partition before this check.
 pacman -Qk linux-zen linux-lts
 editor_home=$(mktemp -d)

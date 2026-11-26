@@ -1,0 +1,70 @@
+# Leave the base background to the terminal so Foot can show SwayFX blur.
+[mgr]
+cwd = { fg = "#ccc3d3", bold = true }
+border_style = { fg = "#484b50" }
+find_keyword = { fg = "#e0c78c", bold = true, underline = true }
+find_position = { fg = "#ccc3d3", bold = true }
+symlink_target = { fg = "#bdc1c6", italic = true }
+
+[indicator]
+parent = { fg = "#e5e3e6", bg = "#252328" }
+current = { fg = "#ffffff", bg = "#39363d", bold = true }
+preview = { underline = true }
+padding = { open = "", close = "" }
+
+[tabs]
+active = { fg = "#ccc3d3", bold = true }
+inactive = { fg = "#bdc1c6" }
+sep_inner = { open = " ", close = " " }
+sep_outer = { open = "", close = "" }
+
+[mode]
+normal_main = { fg = "#ccc3d3", bold = true }
+normal_alt = { fg = "#bdc1c6" }
+select_main = { fg = "#e0c78c", bold = true }
+select_alt = { fg = "#e0c78c" }
+unset_main = { fg = "#ff9d91", bold = true }
+unset_alt = { fg = "#ff9d91" }
+
+[status]
+overall = { fg = "#bdc1c6" }
+sep_left = { open = " ", close = " " }
+sep_right = { open = " ", close = " " }
+perm_type = { fg = "#ccc3d3" }
+perm_read = { fg = "#bdc1c6" }
+perm_write = { fg = "#e0c78c" }
+perm_exec = { fg = "#b3ccb4" }
+
+[which]
+border = { fg = "#998f9f" }
+cand = { fg = "#ccc3d3" }
+rest = { fg = "#bdc1c6" }
+desc = { fg = "#e5e3e6" }
+
+[confirm]
+border = { fg = "#998f9f" }
+title = { fg = "#ccc3d3", bold = true }
+
+[input]
+border = { fg = "#998f9f" }
+title = { fg = "#ccc3d3" }
+selected = { fg = "#ffffff", bg = "#39363d" }
+
+[pick]
+border = { fg = "#998f9f" }
+active = { fg = "#ccc3d3", bold = true }
+
+[help]
+border = { fg = "#998f9f" }
+chord = { fg = "#ccc3d3" }
+hovered = { fg = "#ffffff", bg = "#39363d" }
+
+[filetype]
+rules = [
+    { url = "*", is = "orphan", fg = "#ff9d91" },
+    { url = "*/", fg = "#ccc3d3" },
+    { url = "*", is = "exec", fg = "#b3ccb4" },
+    { mime = "**/image/*", fg = "#e0c78c" },
+    { mime = "**/{audio,video}/*", fg = "#ccc3d3" },
+    { url = "*", fg = "#e5e3e6" },
+]

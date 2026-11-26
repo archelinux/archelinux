@@ -9,6 +9,7 @@ guide=/usr/share/doc/arche-workspace-defaults/first-session.md
 grep -Fxq 'Terminal=true' "$launcher"
 grep -Fxq "Exec=less $guide" "$launcher"
 command -v less >/dev/null
+test "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.desktop.interface color-scheme)" = "'prefer-dark'"
 runuser -u nobody -- less "$guide" | cmp - "$guide"
 source /root/arche-install
 CHROOT=/
@@ -31,7 +32,7 @@ runuser -u "$account" -- env HOME="$home_dir" TERM=xterm zsh -lic '
 printf '\nZSH_THEME=my-personal-theme\n' >> "$home_dir/.zshrc"
 printf '\nbindsym Mod4+F10 exec foot\n' >> "$home_dir/.config/sway/config"
 files=("$home_dir/.zshrc" "$home_dir/.config/sway/config")
-for config in waybar/style.css waybar/config.jsonc foot/foot.ini nvim/colors/archevim.lua yazi/keymap.toml; do
+for config in waybar/style.css waybar/config.jsonc foot/foot.ini nvim/colors/archevim.lua yazi/keymap.toml yazi/theme.toml; do
   path="$home_dir/.config/$config"
   cmp "/usr/share/arche/skel/.config/$config" "$path"
   printf '\n' >> "$path"

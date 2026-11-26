@@ -32,6 +32,8 @@ Run `fastfetch` to see system information. The recommended software selection in
 - Click the volume indicator to open Wiremix in Foot. Right-click to toggle mute or scroll to change the volume.
 - Click the Bluetooth icon to open `bluetoothctl`. Use `power on`, `scan on` and `pair DEVICE_ADDRESS` to pair a device. If the adapter is missing or disappears after suspend, check `rfkill list bluetooth` and `journalctl -b -k` for driver or firmware messages. You can also try the other installed kernel.
 - To enable keyboard layout switching in Sway, put your preferred XKB layouts in `~/.config/sway/keyboard.conf` and reload with **Alt+Shift+C**. For example, `input type:keyboard xkb_layout us,de` sets up US English and German. Press **Super+Space** or click the language indicator to cycle through your layouts. The first layout determines where the physical keys for Sway shortcuts are mapped.
+Apps that follow the desktop color preference start in dark mode. To choose light mode for your account, run `gsettings set org.gnome.desktop.interface color-scheme prefer-light`. Run `gsettings reset org.gnome.desktop.interface color-scheme` to restore the desktop default.
+
 ## Android over USB
 
 All installed profiles include Android file transfer and ADB tools. Connect an unlocked Android phone using a USB data cable and select **File transfer** on the phone. Run `mtp-detect` to check the connection, `mtp-files` to list files, `mtp-getfile FILE_ID LOCAL_PATH` to copy a file from the phone, or `mtp-sendfile LOCAL_PATH DEVICE_PATH` to send one. For development, turn on USB debugging, approve the computer on the phone, and run `adb devices`.

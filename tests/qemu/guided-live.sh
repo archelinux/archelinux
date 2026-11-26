@@ -36,11 +36,14 @@ PY
 if [[ ! -d $share/candidate ]]; then
   [[ $(uname -r) == *-lts && ! -e /usr/share/arche/repo ]]
   [[ $(arch-chroot /mnt pacman-conf --repo arche Server) == https://raw.githubusercontent.com/archelinux/archelinux/rolling-channel/stable ]]
-  arch-chroot /mnt pacman -Q linux-lts linux-zen iwd wiremix bluez android-tools libmtp fastfetch go gopls
+  arch-chroot /mnt pacman -Q linux-lts linux-zen iwd wiremix bluez android-tools android-udev libmtp fastfetch go gopls
   for service in iwd systemd-networkd systemd-resolved bluetooth; do
     systemctl --root=/mnt is-enabled "$service"
   done
   if systemctl --root=/mnt is-enabled NetworkManager; then exit 1; fi
+  arch-chroot /mnt adb version
+  test -x /mnt/usr/bin/mtp-detect
+  test -f /mnt/usr/lib/udev/rules.d/51-android.rules
   grep -Fxq 'WLANInterfaceType=station' /mnt/etc/systemd/network/80-arche-wifi.network
   for kernel in linux-lts linux-zen; do
     test -s "/mnt/boot/vmlinuz-$kernel"

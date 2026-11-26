@@ -96,7 +96,10 @@ with patch.object(guided.tui, 'run', return_value=None) as render:
 for key in ('arche_tools', 'disk_config', 'kernels', 'packages'):
     assert menu._item_group.find_by_key(key).action is not None
 config = ArchConfig.from_config({'arche_tools': [], 'kernels': ['linux']}, Arguments())
-assert set(package_plan(config)) == {'arche-workspace-defaults', 'arche-maintenance', 'arche-zsh', 'fastfetch', 'iwd'}
+assert set(package_plan(config)) == {
+    'arche-workspace-defaults', 'arche-maintenance', 'arche-zsh', 'fastfetch', 'iwd',
+    'android-tools', 'android-udev', 'libmtp',
+}
 assert ArchConfig.from_config(config.safe_config(), Arguments()).arche_tools == []
 config.arche_tools = ['bat', 'nvidia-open-dkms', 'ollama']
 assert {'bat', 'linux-headers', 'arche-inference-defaults'} <= set(package_plan(config))

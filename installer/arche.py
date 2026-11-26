@@ -6,12 +6,15 @@ from archinstall.lib.menu.helpers import Selection
 from archinstall.tui.menu_item import MenuItem, MenuItemGroup
 from archinstall.tui.result import ResultType
 
-DESKTOP_CONTROLS = 'wiremix bluez bluez-utils android-tools android-udev libmtp'.split()
+DESKTOP_CONTROLS = ['wiremix', 'bluez', 'bluez-utils']
 FLATHUB_APPS = {'spotify': 'com.spotify.Client', 'google-chrome': 'com.google.Chrome'}
 
 # Sway's key bindings, bar and session hooks use these companions.
 SWAY_SESSION = 'foot fuzzel mako swaybg waybar python iproute2 swayidle swaylock xorg-xwayland xdg-desktop-portal-wlr xdg-desktop-portal-gtk grim slurp wl-clipboard librsvg brightnessctl wireplumber playerctl pipewire pipewire-pulse pipewire-alsa ttf-jetbrains-mono-nerd ttf-nerd-fonts-symbols-mono noto-fonts noto-fonts-emoji'.split()
-ALWAYS_INSTALLED = ['arche-workspace-defaults', 'arche-maintenance', 'arche-zsh', 'iwd', 'fastfetch']
+ALWAYS_INSTALLED = [
+    'arche-workspace-defaults', 'arche-maintenance', 'arche-zsh', 'iwd', 'fastfetch',
+    'android-tools', 'android-udev', 'libmtp',
+]
 TOOLS = {
     'arche-base': 'Full system profile: Zen and LTS kernels and headers, base-devel, firmware and XFS tuning',
     'arche-tui-stack': 'Full terminal desktop: Sway, Foot, tmux, Neovim, language servers and CLI tools',

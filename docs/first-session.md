@@ -70,7 +70,7 @@ directory.
 | Sway | Alt+H/J/K/L | Focus a tile left/down/up/right |
 | tmux or configured Neovim in normal mode | Ctrl+H/J/K/L | Focus an adjacent pane or split |
 | Sway | Alt+Shift+C | Apply a saved configuration edit |
-| Sway | Super+Space | Switch between US and Persian keyboard layouts |
+| Sway | Super+Space | Cycle through your configured keyboard layouts |
 | Waybar | Click volume, network or Bluetooth | Open Wiremix, iwctl or bluetoothctl in Foot |
 | Desktop | Ctrl+Alt+F2 | Switch to a text login on TTY2 |
 

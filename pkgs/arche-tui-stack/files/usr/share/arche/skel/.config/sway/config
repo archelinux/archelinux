@@ -5,8 +5,7 @@ set $mod Mod1
 set $term foot
 set $menu fuzzel
 font pango:JetBrainsMono Nerd Font 10
-# The first layout defines the physical keys for the workspace shortcuts.
-input type:keyboard xkb_layout us,ir
+# Put your preferred XKB layouts in this optional file.
 include ~/.config/sway/keyboard.conf
 floating_modifier $mod normal
 xwayland enable

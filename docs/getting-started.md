@@ -31,7 +31,7 @@ Run `fastfetch` to see system information. The recommended software selection in
 - Click the Waybar network indicator to open `iwctl`. On Arch, users in `wheel` or `network` can control iwd.
 - Click the volume indicator to open Wiremix in Foot. Right-click to toggle mute or scroll to change the volume.
 - Click the Bluetooth icon to open `bluetoothctl`. Use `power on`, `scan on` and `pair DEVICE_ADDRESS` to pair a device. If the adapter is missing or disappears after suspend, check `rfkill list bluetooth` and `journalctl -b -k` for driver or firmware messages. You can also try the other installed kernel.
-- Press **Super+Space** or click the language indicator to switch between US and Persian in Sway. To choose other layouts, put a line such as `input type:keyboard xkb_layout us,de` in `~/.config/sway/keyboard.conf` and reload with **Alt+Shift+C**. The first layout determines where the physical keys for Sway shortcuts are mapped.
+- To enable keyboard layout switching in Sway, put your preferred XKB layouts in `~/.config/sway/keyboard.conf` and reload with **Alt+Shift+C**. For example, `input type:keyboard xkb_layout us,de` sets up US English and German. Press **Super+Space** or click the language indicator to cycle through your layouts. The first layout determines where the physical keys for Sway shortcuts are mapped.
 - Connect an unlocked Android phone using a USB data cable and select **File transfer** on the phone. Run `mtp-detect` to check the connection, `mtp-files` to list files, `mtp-getfile FILE_ID LOCAL_PATH` to copy a file from the phone, or `mtp-sendfile LOCAL_PATH DEVICE_PATH` to send one. For development, turn on USB debugging, approve the computer on the phone, and run `adb devices`.
 
 ## The Zsh workspace

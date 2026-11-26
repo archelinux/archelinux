@@ -36,7 +36,7 @@ Apps that follow the desktop color preference start in dark mode. To choose ligh
 
 ## Android over USB
 
-All installed profiles include Android file transfer and ADB tools. Connect an unlocked Android phone using a USB data cable and select **File transfer** on the phone. Run `mtp-detect` to check the connection, `mtp-files` to list files, `mtp-getfile FILE_ID LOCAL_PATH` to copy a file from the phone, or `mtp-sendfile LOCAL_PATH DEVICE_PATH` to send one. For development, turn on USB debugging, approve the computer on the phone, and run `adb devices`.
+All installed profiles include Android file transfer and ADB tools. Connect an unlocked Android phone using a USB data cable and select **File transfer** on the phone. Run `arche-mtp ls` to list the folders and files at the top of the phone storage. Use `arche-mtp ls FOLDER_ID` to open a folder, `arche-mtp put LOCAL_FILE [FOLDER_ID]` to upload (omit the ID to use the top level), or `arche-mtp get FILE_ID LOCAL_FILE` to download. The command lists only the folder you request, so transfers can start without a full scan of the phone. For development, turn on USB debugging, approve the computer on the phone, and run `adb devices`.
 
 ## USB drives and SD cards
 

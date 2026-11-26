@@ -9,6 +9,12 @@ guide=/usr/share/doc/arche-workspace-defaults/first-session.md
 grep -Fxq 'Terminal=true' "$launcher"
 grep -Fxq "Exec=less $guide" "$launcher"
 command -v less >/dev/null
+arche-mtp --help | grep -Fq "arche-mtp put LOCAL_FILE"
+if arche-mtp get 4294967295 /tmp/invalid-mtp-target; then
+  exit 1
+else
+  test "$?" -eq 2
+fi
 test "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.desktop.interface color-scheme)" = "'prefer-dark'"
 runuser -u nobody -- less "$guide" | cmp - "$guide"
 source /root/arche-install
@@ -38,6 +44,8 @@ for config in waybar/style.css waybar/config.jsonc foot/foot.ini nvim/colors/arc
   printf '\n' >> "$path"
   files+=("$path")
 done
+test ! -e "$home_dir/.config/fish"
+test ! -e /usr/share/arche/shell/fish.fish
 test ! -e "$home_dir/.config/alacritty/alacritty.toml"
 for plugin_file in main.lua cross.lua sudo.lua; do
   cmp "/usr/share/arche/skel/.config/yazi/plugins/mount.yazi/$plugin_file" \

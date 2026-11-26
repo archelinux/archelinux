@@ -77,7 +77,7 @@ Both servers bind to loopback. User units normally stop at logout; enable linger
 
 ## Verification status and VM acceptance
 
-`tests/check.sh` checks shell syntax, source checksums, rollback edge cases, and formats a disposable sparse file to inspect XFS geometry. `arche-smoke-test` checks image binaries, LSP registration and parser loading and measures warm interactive shell startup over 20 samples. The median must stay below 15 ms for Bash and Fish and below 100 ms for Zsh with Oh My Zsh, the bureau theme and the default plugins.
+`tests/check.sh` checks shell syntax, source checksums, rollback edge cases, and formats a disposable sparse file to inspect XFS geometry. `arche-smoke-test` checks image binaries, LSP registration and parser loading and measures warm interactive shell startup over 20 samples. The median must stay below 15 ms for Bash and below 100 ms for Zsh with Oh My Zsh, the bureau theme and the default plugins.
 
 Before publishing an ISO, install in a disposable QEMU VM with both UEFI and BIOS firmware. Verify the USB boots LTS and both default installed kernel entries boot, then run:
 
@@ -112,7 +112,7 @@ Alt+h/j/k/l moves focus; Alt+r enters resize mode; Alt+Shift+c reloads
 configuration; Alt+Shift+e exits Sway. No upstream dotfile installer or personal
 cloud/service configuration is run. Media keys use WirePlumber and playerctl.
 
-Login hooks exist for Zsh, Bash and Fish. They require a local non-root TTY1
+Login hooks exist for Zsh and Bash. They require a local non-root TTY1
 session, no existing display, and no SSH connection. NVIDIA/nouveau detection
 sets `WLR_NO_HARDWARE_CURSORS=1` and passes `--unsupported-gpu`; this is a fallback,
 not a guarantee for every driver. No hook is added to the live root installer.

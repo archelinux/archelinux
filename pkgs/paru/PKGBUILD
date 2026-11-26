@@ -1,7 +1,7 @@
 # Maintainer: archelinux maintainers
 pkgname=paru
 pkgver=2.2.1
-pkgrel=1
+pkgrel=2
 pkgdesc='Feature-packed AUR helper'
 arch=('x86_64')
 url='https://github.com/Morganamilo/paru'
@@ -26,7 +26,6 @@ package() {
   install -Dm644 man/paru.8 "$pkgdir/usr/share/man/man8/paru.8"
   install -Dm644 man/paru.conf.5 "$pkgdir/usr/share/man/man5/paru.conf.5"
   install -Dm644 completions/bash "$pkgdir/usr/share/bash-completion/completions/paru"
-  install -Dm644 completions/fish "$pkgdir/usr/share/fish/vendor_completions.d/paru.fish"
   install -Dm644 completions/zsh "$pkgdir/usr/share/zsh/site-functions/_paru"
   scripts/mkmo "$pkgdir/usr/share/locale"
 }

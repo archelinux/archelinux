@@ -25,8 +25,9 @@ To apply the new defaults to an existing home directory, use the templates
 under `/usr/share/arche/skel/.config/` as a reference for these edits:
 
 - In `~/.config/sway/config`, set `$mod` to `Mod1` (Alt), then run `swaymsg reload`.
-- In `~/.config/alacritty/alacritty.toml`, remove the explicit `padding` setting
-  from the `[window]` table to use Alacritty’s defaults.
+- If you changed the Sway terminal, set `$term` to `foot` and reload Sway.
+  Foot is the terminal supplied by archelinux. Upgrades preserve any
+  previously installed Alacritty package and personal configuration.
 - In `~/.config/nvim/lua/plugins/workspace.lua`, remove the two entries disabling
   Mason and Mason LSPConfig. The updated template also lets Mason install
   `lua_ls` when the system language server is absent. If your system lacks

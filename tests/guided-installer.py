@@ -25,6 +25,9 @@ for bundle in bundles:
     assert ('linux-headers' in plan) == (bundle == 'arche-cuda')
 legacy = ArchConfig.from_config({'arche_tools': ['bun-bin', 'basedpyright-bin']}, Arguments())
 assert legacy.arche_tools == ['bun', 'basedpyright']
+legacy_terminals = ArchConfig.from_config({'arche_tools': ['alacritty', 'foot']}, Arguments())
+assert legacy_terminals.arche_tools == ['foot']
+assert 'foot' in package_plan(legacy_terminals) and 'alacritty' not in package_plan(legacy_terminals)
 config.arche_tools = ['github-cli']
 assert 'github-cli' in package_plan(config)
 assert ArchConfig.from_config(config.safe_config(), Arguments()).arche_tools == ['github-cli']

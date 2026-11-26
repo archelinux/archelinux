@@ -11,13 +11,13 @@ SWAY_SESSION = 'foot fuzzel mako swaybg waybar python iproute2 swayidle swaylock
 ALWAYS_INSTALLED = ['arche-workspace-defaults', 'arche-maintenance', 'arche-zsh']
 TOOLS = {
     'arche-base': 'Full system profile: Zen and LTS kernels and headers, base-devel, firmware and XFS tuning',
-    'arche-tui-stack': 'Full terminal desktop: Sway, terminals, tmux, Neovim, language servers and CLI tools',
+    'arche-tui-stack': 'Full terminal desktop: Sway, Foot, tmux, Neovim, language servers and CLI tools',
     'arche-agentic-core': 'Developer runtimes: Python, uv, Bun, cargo-binstall, ast-grep and tree-sitter CLI',
     'arche-cuda': 'NVIDIA bundle: full base profile, open DKMS driver, CUDA and cuDNN (large Arch downloads)',
     'sway': 'Arche tiling desktop with Foot, Fuzzel, Waybar, audio, screen sharing and locking',
     'arche-swayfx': 'Sway workspace with backdrop blur and rounded window corners (replaces stock Sway)',
     'tmux': 'Terminal multiplexer', 'neovim': 'LazyVim editor with the archevim colorscheme (first launch downloads plugins)',
-    'foot': 'Wayland terminal', 'alacritty': 'GPU-accelerated terminal',
+    'foot': 'Wayland terminal',
     'bat': 'File viewer with syntax highlighting', 'eza': 'Directory listings',
     'ripgrep': 'Search file contents', 'fd': 'Find files', 'fzf': 'Fuzzy finder',
     'zoxide': 'Directory jumping', 'direnv': 'Per-project environments',
@@ -107,7 +107,7 @@ async def select_tools(preset):
 def normalize_tools(tools):
     if not isinstance(tools, list) or not all(isinstance(name, str) for name in tools):
         raise ValueError('Invalid Arche software selection')
-    aliases = {'bun-bin': 'bun', 'basedpyright-bin': 'basedpyright'}
+    aliases = {'bun-bin': 'bun', 'basedpyright-bin': 'basedpyright', 'alacritty': 'foot'}
     return list(dict.fromkeys(aliases.get(name, name) for name in tools))
 
 

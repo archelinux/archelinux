@@ -24,7 +24,7 @@ The fixed XFS layout, mount tuning and unattended QEMU path described below refe
 | --- | --- |
 | `arche-base` | Base development tools, both kernels, firmware, XFS, ZRAM, NetworkManager, cache retention and rollback |
 | `paru` | AUR helper built against Arch’s current pacman libraries |
-| `arche-tui-stack` | Paru, Sway, top Waybar, Fuzzel, Mako, fonts/audio controls, tmux, terminals, CLI tools, shells, Neovim and preinstalled language servers |
+| `arche-tui-stack` | Paru, Sway, top Waybar, Fuzzel, Mako, fonts/audio controls, tmux, Foot, CLI tools, shells, Neovim and preinstalled language servers |
 | `arche-agentic-core` | uv, Bun from Arch extra, cargo-binstall, ast-grep, tree-sitter-cli, disabled inference user units |
 | `arche-cuda` | Optional nvidia-open-dkms, nvidia-utils, Arch's `cuda` toolkit and cudnn |
 

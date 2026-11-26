@@ -44,6 +44,8 @@ for config in waybar/style.css waybar/config.jsonc foot/foot.ini nvim/colors/arc
   printf '\n' >> "$path"
   files+=("$path")
 done
+test ! -e "$home_dir/.config/fish"
+test ! -e /usr/share/arche/shell/fish.fish
 test ! -e "$home_dir/.config/alacritty/alacritty.toml"
 for plugin_file in main.lua cross.lua sudo.lua; do
   cmp "/usr/share/arche/skel/.config/yazi/plugins/mount.yazi/$plugin_file" \

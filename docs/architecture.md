@@ -23,7 +23,8 @@ The fixed XFS layout, mount tuning and unattended QEMU path described below refe
 | Package | Contents |
 | --- | --- |
 | `arche-base` | Base development tools, both kernels, firmware, XFS, ZRAM, NetworkManager, cache retention and rollback |
-| `arche-tui-stack` | Sway, top Waybar, Fuzzel, Mako, fonts/audio controls, tmux, terminals, CLI tools, shells, Neovim and preinstalled language servers |
+| `paru` | AUR helper built against Arch’s current pacman libraries |
+| `arche-tui-stack` | Paru, Sway, top Waybar, Fuzzel, Mako, fonts/audio controls, tmux, terminals, CLI tools, shells, Neovim and preinstalled language servers |
 | `arche-agentic-core` | uv, Bun from Arch extra, cargo-binstall, ast-grep, tree-sitter-cli, disabled inference user units |
 | `arche-cuda` | Optional nvidia-open-dkms, nvidia-utils, Arch's `cuda` toolkit and cudnn |
 
@@ -33,7 +34,7 @@ Live configuration overrides and package-owned files are linked into package sou
 
 The TUI package generates `zoxide init --cmd cd SHELL` and `direnv hook SHELL` once at build time and compiles the Zsh hook loader. Shell startup sources those files, sets `EDITOR=nvim` and `FZF_DEFAULT_COMMAND`, when the relevant tools are installed. The guided install initializes Oh My Zsh before loading these hooks. Rebuild the package when upgrading hook generators to refresh their output. Interactive prompt hooks still perform the intended directory tracking and environment checks.
 
-Neovim starts LazyVim with the dark `archevim` colorscheme. On first launch, lazy.nvim downloads plugins into the user’s data directory. Language servers are selected through the installer and use Neovim’s LSP API. Lua, C, Vim, Vimdoc, query, Python and Rust parsers are installed; Python and Rust have baseline highlight queries. Other filetypes retain standard syntax highlighting; Go has its preinstalled LSP. Inside Wayland, Neovim uses wl-copy/wl-paste for system clipboard synchronization. In console/SSH sessions, OSC 52 copies through supported terminals/tmux and paste uses the local yank register. Ctrl-h/j/k/l navigates Neovim windows and adjacent tmux panes.
+Neovim starts LazyVim with the dark `archevim` colorscheme. On first launch, lazy.nvim downloads plugins into the user’s data directory. Language servers are available through the installer and Mason. LazyVim uses the system Lua language server when present and can install it through Mason otherwise. Lua, C, Vim, Vimdoc, query, Python and Rust parsers are installed; Python and Rust have baseline highlight queries. Other filetypes retain standard syntax highlighting; Go has its preinstalled LSP. Inside Wayland, Neovim uses wl-copy/wl-paste for system clipboard synchronization. In console/SSH sessions, OSC 52 copies through supported terminals/tmux and paste uses the local yank register. Ctrl-h/j/k/l navigates Neovim windows and adjacent tmux panes.
 
 ## Build
 
@@ -106,9 +107,9 @@ Litho Dark palette and inset Waybar panel with a centered clock. Provenance and 
 license are installed in `/usr/share/doc/arche-tui-stack/`. Tiled and floating windows have a one-pixel outline. The recommended SwayFX compositor adds backdrop blur and gives Waybar and windows a nine-pixel corner radius. The workspace highlight sits eight pixels inside the panel and has a three-pixel radius. Applications that draw their own
 internal chrome remain responsible for that chrome.
 
-Super+Return opens Foot; Super+d opens Fuzzel; Super+Shift+q closes a window;
-Super+h/j/k/l moves focus; Super+r enters resize mode; Super+Shift+c reloads
-configuration; Super+Shift+e exits Sway. No upstream dotfile installer or personal
+Alt+Return opens Foot; Alt+d opens Fuzzel; Alt+Shift+q closes a window;
+Alt+h/j/k/l moves focus; Alt+r enters resize mode; Alt+Shift+c reloads
+configuration; Alt+Shift+e exits Sway. No upstream dotfile installer or personal
 cloud/service configuration is run. Media keys use WirePlumber and playerctl.
 
 Login hooks exist for Zsh, Bash and Fish. They require a local non-root TTY1

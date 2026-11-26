@@ -29,6 +29,7 @@ TOOLS = {
     'spotify-player': 'Terminal Spotify client (Premium required)',
     'jq': 'JSON queries', 'yq': 'YAML queries',
     'wl-clipboard': 'Wayland clipboard', 'xclip': 'X11 clipboard',
+    'paru': 'Arch User Repository helper',
     'base-devel': 'Arch package building tools', 'python': 'Python runtime',
     'uv': 'Python project manager', 'bun': 'JavaScript runtime',
     'cargo-binstall': 'Install Rust binaries', 'ast-grep': 'Structural code search',
@@ -149,7 +150,7 @@ def package_plan(config):
     if {'ollama', 'llama.cpp'}.intersection(packages + config.packages):
         packages.append('arche-inference-defaults')
     if 'neovim' in packages or 'neovim' in config.packages:
-        packages.extend(['arche-neovim-parsers', 'git', 'gcc', 'tree-sitter-cli', 'ripgrep', 'fd'])
+        packages.extend(['arche-neovim-parsers', 'git', 'unzip', 'gcc', 'tree-sitter-cli', 'ripgrep', 'fd'])
         packages.extend('tree-sitter-' + lang for lang in ('lua', 'c', 'vim', 'vimdoc', 'query', 'python', 'rust'))
     if {'arche-cuda', 'nvidia-open-dkms'}.intersection(packages + config.packages):
         packages.extend(kernel + '-headers' for kernel in config.kernels)

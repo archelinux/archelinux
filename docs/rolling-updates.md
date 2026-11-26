@@ -16,6 +16,23 @@ You can keep using the same installation across ISO releases. Check the channel 
 
 If you build extra packages from the AUR, update them separately after the full upgrade. Review changes to each PKGBUILD and its accompanying files before rebuilding as your regular user. An Arch library update can also require rebuilding a locally installed AUR package.
 
+## Paru and workspace defaults
+
+After the Paru update reaches stable, install it with `sudo pacman -Syu arche/paru`.
+The full `arche-tui-stack` bundle pulls it in automatically.
+
+To apply the new defaults to an existing home directory, use the templates
+under `/usr/share/arche/skel/.config/` as a reference for these edits:
+
+- In `~/.config/sway/config`, set `$mod` to `Mod1` (Alt), then run `swaymsg reload`.
+- In `~/.config/alacritty/alacritty.toml`, remove the explicit `padding` setting
+  from the `[window]` table to use Alacritty’s defaults.
+- In `~/.config/nvim/lua/plugins/workspace.lua`, remove the two entries disabling
+  Mason and Mason LSPConfig. The updated template also lets Mason install
+  `lua_ls` when the system language server is absent. If your system lacks
+  `unzip`, install it with `sudo pacman -Syu --needed unzip`. Open Neovim and
+  run `:Lazy sync` to install the restored plugins.
+
 ## Enabling stable on an existing 2.0.0 installation
 
 Use the public release key you verified when you installed. If you need a new copy, obtain it from the signed ISO release and independently check the fingerprint **E446 C26A 0B7B A1A6 6A3D CC9F 7EC5 6400 3573 C80B**. Use the following commands in a shell with Bash syntax, replacing the key path with your own. A failed check stops the transition.

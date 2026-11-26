@@ -1,7 +1,7 @@
 # Arche Linux — Litho Dark adaptation, 2026-11-10.
 # Upstream design: https://github.com/okubax/dotfiles
-# Super+Return: terminal; Super+d: launcher; Super+Shift+e: end session.
-set $mod Mod4
+# Alt+Return: terminal; Alt+d: launcher; Alt+Shift+e: end session.
+set $mod Mod1
 set $term foot
 set $menu fuzzel
 font pango:JetBrainsMono Nerd Font 10

@@ -1,0 +1,32 @@
+# Maintainer: archelinux maintainers
+pkgname=paru
+pkgver=2.2.1
+pkgrel=1
+pkgdesc='Feature-packed AUR helper'
+arch=('x86_64')
+url='https://github.com/Morganamilo/paru'
+license=('GPL-3.0-only')
+depends=('base-devel' 'git' 'glibc' 'libgcc' 'openssl' 'pacman' 'libalpm.so')
+makedepends=('cargo' 'clang' 'gettext')
+conflicts=('paru-bin' 'paru-git')
+backup=('etc/paru.conf')
+options=('!debug')
+source=('paru-2.2.1.tar.gz::https://codeload.github.com/Morganamilo/paru/tar.gz/refs/tags/v2.2.1')
+sha256sums=('caa4a3ff8702e65a3c8124bfb153e7ea6c29f9a888e7a6381db1b341e78b819b')
+
+build() {
+  cd "$pkgname-$pkgver"
+  cargo build --release --locked --features generate --target-dir target
+}
+
+package() {
+  cd "$pkgname-$pkgver"
+  install -Dm755 target/release/paru "$pkgdir/usr/bin/paru"
+  install -Dm644 paru.conf "$pkgdir/etc/paru.conf"
+  install -Dm644 man/paru.8 "$pkgdir/usr/share/man/man8/paru.8"
+  install -Dm644 man/paru.conf.5 "$pkgdir/usr/share/man/man5/paru.conf.5"
+  install -Dm644 completions/bash "$pkgdir/usr/share/bash-completion/completions/paru"
+  install -Dm644 completions/fish "$pkgdir/usr/share/fish/vendor_completions.d/paru.fish"
+  install -Dm644 completions/zsh "$pkgdir/usr/share/zsh/site-functions/_paru"
+  scripts/mkmo "$pkgdir/usr/share/locale"
+}

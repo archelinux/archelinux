@@ -1,4 +1,6 @@
 assert(require("lazy.core.config").plugins.LazyVim._.loaded, "LazyVim failed to load")
+assert(vim.fn.exists(":Mason") == 2, "Mason command missing")
+assert(require("lazy.core.config").plugins["mason-lspconfig.nvim"], "Mason LSPConfig missing")
 assert(vim.g.colors_name == "archevim", "Expected the archevim colorscheme")
 local popup = vim.api.nvim_get_hl(0, { name = "Pmenu", link = false })
 assert(popup.bg == 0x0d1014 and popup.fg == 0xd9dde4, "Expected readable dark menus")

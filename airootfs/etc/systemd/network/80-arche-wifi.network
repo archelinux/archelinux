@@ -1,0 +1,16 @@
+[Match]
+WLANInterfaceType=station
+
+[Link]
+RequiredForOnline=no
+
+[Network]
+DHCP=yes
+IPv6AcceptRA=yes
+IgnoreCarrierLoss=3s
+
+[DHCPv4]
+RouteMetric=600
+
+[IPv6AcceptRA]
+RouteMetric=600

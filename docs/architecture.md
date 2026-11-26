@@ -22,7 +22,7 @@ The fixed XFS layout, mount tuning and unattended QEMU path described below refe
 
 | Package | Contents |
 | --- | --- |
-| `arche-base` | Base development tools, both kernels, firmware, XFS, ZRAM, NetworkManager, cache retention and rollback |
+| `arche-base` | Base development tools, both kernels, firmware, XFS, ZRAM, iwd, cache retention and rollback |
 | `paru` | AUR helper built against Arch’s current pacman libraries |
 | `arche-tui-stack` | Paru, Sway, top Waybar, Fuzzel, Mako, fonts/audio controls, tmux, Foot, CLI tools, shells, Neovim and preinstalled language servers |
 | `arche-agentic-core` | uv, Bun from Arch extra, cargo-binstall, ast-grep, tree-sitter-cli, disabled inference user units |
@@ -34,7 +34,7 @@ Live configuration overrides and package-owned files are linked into package sou
 
 The TUI package generates `zoxide init --cmd cd SHELL` and `direnv hook SHELL` once at build time and compiles the Zsh hook loader. Shell startup sources those files, sets `EDITOR=nvim` and `FZF_DEFAULT_COMMAND`, when the relevant tools are installed. The guided install initializes Oh My Zsh before loading these hooks. Rebuild the package when upgrading hook generators to refresh their output. Interactive prompt hooks still perform the intended directory tracking and environment checks.
 
-Neovim starts LazyVim with the dark `archevim` colorscheme. On first launch, lazy.nvim downloads plugins into the user’s data directory. Language servers are available through the installer and Mason. LazyVim uses the system Lua language server when present and can install it through Mason otherwise. Lua, C, Vim, Vimdoc, query, Python and Rust parsers are installed; Python and Rust have baseline highlight queries. Other filetypes retain standard syntax highlighting; Go has its preinstalled LSP. Inside Wayland, Neovim uses wl-copy/wl-paste for system clipboard synchronization. In console/SSH sessions, OSC 52 copies through supported terminals/tmux and paste uses the local yank register. Ctrl-h/j/k/l navigates Neovim windows and adjacent tmux panes.
+Neovim starts LazyVim with the dark `archevim` colorscheme. On first launch, lazy.nvim downloads plugins into the user’s data directory. Language servers are available through the installer and Mason. LazyVim uses the system Lua language server when present and can install it through Mason otherwise. Lua, C, Vim, Vimdoc, query, Go, Python and Rust parsers are installed. Go, Python and Rust have baseline highlight queries. The recommended software includes the Go compiler and formatter, with `gopls` for Neovim. Inside Wayland, Neovim uses wl-copy/wl-paste for system clipboard synchronization. In console/SSH sessions, OSC 52 copies through supported terminals/tmux and paste uses the local yank register. Ctrl-h/j/k/l navigates Neovim windows and adjacent tmux panes.
 
 ## Build
 
@@ -88,7 +88,7 @@ cat /etc/fstab
 printf 'reflink test\n' > ~/clone-source
 cp --reflink=always ~/clone-source ~/clone-copy
 zramctl
-systemctl is-enabled paccache.timer NetworkManager
+systemctl is-enabled paccache.timer iwd systemd-networkd systemd-resolved
 systemctl --user is-enabled ollama llama-server  # disabled
 nvim example.lua                   # :checkhealth vim.lsp, :InspectTree
 ```

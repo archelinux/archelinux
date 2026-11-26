@@ -73,3 +73,37 @@ if valid_locale "$CHROOT/locale.gen"; then
   echo 'Unknown locale accepted' >&2; exit 1
 fi
 echo 'Locale whitespace regression passed'
+
+# Only the copy mode carries the live Wi-Fi profiles, with root-only permissions.
+live=$(mktemp -d "$CHROOT/live.XXXXXX")
+cp -r airootfs/etc "$live/"
+mkdir -p "$live/var/lib/iwd" "$CHROOT/bin"
+for profile in 'home wifi.psk' work.8021x guest.open ignored.txt; do
+  printf '%s\n' "$profile" > "$live/var/lib/iwd/$profile"
+done
+cat > "$CHROOT/bin/systemctl" <<'SYSTEMCTL'
+#!/usr/bin/env bash
+[[ $2 == enable && $3 == iwd.service && $4 == systemd-networkd.service && $5 == systemd-resolved.service ]]
+SYSTEMCTL
+chmod +x "$CHROOT/bin/systemctl"
+for mode in copy fresh manual; do
+  target="$CHROOT/network-$mode"
+  PATH="$CHROOT/bin:$PATH" bash airootfs/usr/share/arche/install-network "$target" "$mode" "$live"
+  test -f "$target/etc/tmpfiles.d/arche-resolved.conf"
+  if [[ $mode == manual ]]; then
+    test -z "$(find "$target/etc/systemd/network" -type f -print -quit)"
+  else
+    cmp "$live/etc/systemd/network/80-arche-wifi.network" "$target/etc/systemd/network/80-arche-wifi.network"
+  fi
+  if [[ $mode == copy ]]; then
+    test "$(stat -c %a "$target/var/lib/iwd")" = 700
+    for profile in 'home wifi.psk' work.8021x guest.open; do
+      cmp "$live/var/lib/iwd/$profile" "$target/var/lib/iwd/$profile"
+      test "$(stat -c %a "$target/var/lib/iwd/$profile")" = 600
+    done
+    test ! -e "$target/var/lib/iwd/ignored.txt"
+  else
+    test ! -e "$target/var/lib/iwd"
+  fi
+done
+echo 'Network defaults, manual mode and Wi-Fi profile transfer checks passed'

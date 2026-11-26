@@ -2,12 +2,12 @@
 pkgbase=arche-agentic-core
 pkgname=(arche-agentic-core arche-inference-defaults)
 pkgver=2.0.0
-pkgrel=3
+pkgrel=4
 pkgdesc='Local agent runtimes and opt-in inference units'
 arch=('any')
 url='https://github.com/archelinux/archelinux'
 license=('GPL-3.0-only')
-_full_deps=('python' 'uv' 'bun' 'cargo-binstall' 'ast-grep' 'tree-sitter-cli')
+_full_deps=('python' 'go' 'uv' 'bun' 'cargo-binstall' 'ast-grep' 'tree-sitter-cli')
 optdepends=('ollama: local model inference' 'llama.cpp: GGUF inference server')
 makedepends=("${_full_deps[@]}")
 source=('config-0' 'config-1' 'config-2')

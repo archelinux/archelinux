@@ -15,9 +15,16 @@ assert 'for_window [all] border pixel 1' in sway
 assert 'output * bg /usr/share/arche/twin-blades.jpg fill' in sway
 assert 'output eDP-1' not in sway
 assert 'set $term foot' in sway.splitlines()
+assert 'input type:keyboard xkb_layout us,ir' in sway.splitlines()
+assert 'bindsym Mod4+space input type:keyboard xkb_switch_layout next' in sway.splitlines()
+assert 'bindsym --to-code $mod+d exec $menu' in sway.splitlines()
 bar = json.loads((skel / '.config/waybar/config.jsonc').read_text())
 assert bar['position'] == 'top' and bar['modules-left'][0] == 'sway/workspaces'
 assert bar['modules-center'] == ['clock'] and 'custom/github' in bar['modules-right']
+assert {'bluetooth', 'sway/language'} <= set(bar['modules-right'])
+assert bar['network']['on-click'] == 'foot -e iwctl'
+assert bar['wireplumber']['on-click'] == 'foot -e wiremix'
+assert bar['bluetooth']['on-click'] == 'foot -e bluetoothctl'
 assert '@import url("litho-dark.css")' in (skel / '.config/waybar/style.css').read_text()
 with tempfile.TemporaryDirectory() as directory:
     directory = Path(directory)

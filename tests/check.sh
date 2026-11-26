@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
-for script in profiledef.sh airootfs/root/arche-install pkgs/arche-base/files/usr/bin/arche-rollback scripts/*.sh tests/qemu/*.sh airootfs/root/arche-smoke-test airootfs/root/arche-desktop-smoke pkgs/*/PKGBUILD; do
+for script in profiledef.sh airootfs/root/arche-install airootfs/usr/share/arche/install-network pkgs/arche-base/files/usr/bin/arche-rollback scripts/*.sh tests/qemu/*.sh airootfs/root/arche-smoke-test airootfs/root/arche-desktop-smoke pkgs/*/PKGBUILD; do
   bash -n "$script"
 done
 if command -v shellcheck >/dev/null; then
-  shellcheck airootfs/root/arche-install pkgs/arche-base/files/usr/bin/arche-rollback scripts/*.sh tests/qemu/*.sh
+  shellcheck airootfs/root/arche-install airootfs/usr/share/arche/install-network pkgs/arche-base/files/usr/bin/arche-rollback scripts/*.sh tests/qemu/*.sh
 fi
 python3 tests/check.py
 python3 tests/preflight.py

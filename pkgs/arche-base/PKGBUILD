@@ -2,12 +2,12 @@
 pkgbase=arche-base
 pkgname=(arche-base arche-maintenance)
 pkgver=2.0.0
-pkgrel=4
+pkgrel=5
 pkgdesc='Base system, tuned XFS and dual kernels'
 arch=('any')
 url='https://github.com/archelinux/archelinux'
 license=('GPL-3.0-only')
-_full_deps=('base' 'base-devel' 'xfsprogs' 'zram-generator' 'pacman-contrib' 'git' 'curl' 'wget' 'polkit' 'openssh' 'linux-zen' 'linux-zen-headers' 'linux-lts' 'linux-lts-headers' 'linux-firmware' 'networkmanager' 'systemd' 'mkinitcpio' 'dosfstools' 'sudo' 'intel-ucode' 'amd-ucode')
+_full_deps=('base' 'base-devel' 'xfsprogs' 'zram-generator' 'pacman-contrib' 'git' 'curl' 'wget' 'polkit' 'openssh' 'linux-zen' 'linux-zen-headers' 'linux-lts' 'linux-lts-headers' 'linux-firmware' 'iwd' 'systemd' 'mkinitcpio' 'dosfstools' 'sudo' 'intel-ucode' 'amd-ucode')
 
 makedepends=("${_full_deps[@]}")
 source=('config-0' 'config-1' 'config-2' 'config-3' 'config-4::https://raw.githubusercontent.com/archelinux/arch-tools/v2.0.1/bin/arche-rollback' 'enable-rolling' 'release-public-key')

@@ -177,7 +177,8 @@ main() {
     mount "$EFI_PARTITION" "$CHROOT/boot"
   fi
   # pacstrap verifies downloads with the live keyring.
-  pacstrap -K "$CHROOT" arche-base arche-tui-stack arche-agentic-core arche-zsh
+  pacstrap -K "$CHROOT" arche-base arche-tui-stack arche-agentic-core arche-zsh \
+    iwd wiremix bluez bluez-utils android-tools android-udev libmtp fastfetch go
   write_fstab
   prepare_user_skeleton
   cp /etc/pacman.conf "$CHROOT/etc/pacman.conf"
@@ -202,7 +203,8 @@ main() {
   install -d -m750 "$CHROOT/etc/sudoers.d"
   printf '%%wheel ALL=(ALL:ALL) ALL\n' > "$CHROOT/etc/sudoers.d/10-wheel"
   chmod 440 "$CHROOT/etc/sudoers.d/10-wheel"
-  arch-chroot "$CHROOT" systemctl enable NetworkManager.service paccache.timer
+  arch-chroot "$CHROOT" systemctl enable paccache.timer bluetooth.service
+  bash /usr/share/arche/install-network "$CHROOT" copy
   arch-chroot "$CHROOT" arche-enable-rolling
   setup_bootloader
   echo 'Installation complete. Unmount /mnt recursively and reboot; inference services are opt-in.'

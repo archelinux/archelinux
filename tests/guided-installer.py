@@ -1,19 +1,40 @@
 """Run with the staged, patched Arch runtime on PYTHONPATH; no target disks needed."""
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import Mock, call, patch
 
 from archinstall.lib.models.device import DiskLayoutType, EncryptionType, FilesystemType, ModificationStatus
-from archinstall.arche import package_plan, root_layout_error
+from archinstall.arche import package_plan, prepare_target, root_layout_error, setup_network
+from archinstall.lib.models.network import NicType
 from archinstall.lib.args import ArchConfig, Arguments
 from archinstall.lib.global_menu import GlobalMenu
 from archinstall.scripts import guided
 
 config = ArchConfig.from_config({}, Arguments())
 assert config.hostname == 'archelinux'
+assert config.network_config.type == NicType.ISO
+for old_type in ('nm', 'nm_iwd'):
+    old = ArchConfig.from_config({'network_config': {'type': old_type}}, Arguments())
+    assert old.network_config.type == NicType.ISO
+network_modes = [
+    ({}, 'copy'),
+    ({'type': 'iwd'}, 'fresh'),
+    ({'type': 'manual', 'nics': [{'iface': 'enp1s0', 'dhcp': True}]}, 'manual'),
+]
+for settings, mode in network_modes:
+    network = ArchConfig.from_config({'network_config': settings}, Arguments()).network_config
+    calls = []
+    install = SimpleNamespace(target='/mnt', configure_nic=calls.append)
+    with patch('archinstall.arche.subprocess.run') as run:
+        setup_network(install, network)
+        run.assert_called_once_with(['bash', '/usr/share/arche/install-network', '/mnt', mode], check=True)
+    assert [nic.iface for nic in calls] == (['enp1s0'] if mode == 'manual' else [])
 assert ArchConfig.from_config({'hostname': 'workstation'}, Arguments()).hostname == 'workstation'
 assert {'bat', 'tmux', 'arche-swayfx', 'neovim'} <= set(config.arche_tools)
 assert set(config.kernels) == {'linux-zen', 'linux-lts'}
-assert {'foot', 'swaylock', 'fuzzel', 'arche-zsh', 'grim', 'slurp', 'wl-clipboard'} <= set(package_plan(config))
+assert {'foot', 'swaylock', 'fuzzel', 'arche-zsh', 'grim', 'slurp', 'wl-clipboard', 'wiremix', 'bluez', 'bluez-utils', 'android-tools',
+        'android-udev', 'libmtp', 'fastfetch', 'go', 'gopls'} <= set(package_plan(config))
 assert 'cuda' not in package_plan(config)
 assert 'github-cli' not in package_plan(config)
 bundles = {'arche-base', 'arche-tui-stack', 'arche-agentic-core', 'arche-cuda'}
@@ -35,21 +56,32 @@ for selection in (['arche-swayfx'], ['sway', 'arche-swayfx']):
     config.arche_tools = selection
     plan = package_plan(config)
     assert {'arche-swayfx', 'foot', 'grim', 'waybar'} <= set(plan) and 'sway' not in plan
-optional_tools = {'paru', 'yazi', 'btop', 'arche-waybar-github'}
+optional_tools = {'paru', 'yazi', 'btop', 'arche-waybar-github', 'firefox'}
 assert optional_tools.isdisjoint(package_plan(ArchConfig.from_config({}, Arguments())))
 for name in sorted(optional_tools):
     config.arche_tools = [name]
     restored = ArchConfig.from_config(config.safe_config(), Arguments())
     assert set(package_plan(restored)) & optional_tools == {name}
     assert 'grim' not in package_plan(restored)
-for selected in ([], ['spotify'], ['spotify-player'], ['spotify', 'spotify-player']):
+for selected in ([], ['spotify'], ['spotify-player'], ['spotify', 'spotify-player'],
+                 ['google-chrome'], ['google-chrome', 'spotify', 'firefox']):
     config.arche_tools = selected
     restored = ArchConfig.from_config(config.safe_config(), Arguments())
     assert restored.arche_tools == selected
     plan = package_plan(restored)
-    assert 'spotify' not in plan
-    assert ('flatpak' in plan) == ('spotify' in selected)
+    assert {'spotify', 'google-chrome', 'chromium'}.isdisjoint(plan)
+    assert ('flatpak' in plan) == bool({'spotify', 'google-chrome'} & set(selected))
+    assert ('firefox' in plan) == ('firefox' in selected)
     assert ('spotify-player' in plan) == ('spotify-player' in selected)
+with TemporaryDirectory() as target, patch('archinstall.arche.shutil.copytree'), patch('archinstall.arche.shutil.copyfile'):
+    installation = Mock(target=Path(target))
+    prepared = ArchConfig.from_config({'arche_tools': ['google-chrome', 'spotify', 'sway']}, Arguments())
+    prepare_target(installation, prepared)
+    assert installation.arch_chroot.call_args_list[1:3] == [
+        call('flatpak remote-add --system --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo'),
+        call('flatpak install --system --noninteractive flathub com.google.Chrome com.spotify.Client', peek_output=True),
+    ]
+    installation.enable_service.assert_any_call('bluetooth.service')
 config.arche_tools = ['neovim']
 assert {'git', 'unzip', 'gcc', 'tree-sitter-cli', 'fd', 'ripgrep', 'arche-neovim-parsers'} <= set(package_plan(config))
 # Cancel the first interactive screen. No configuration is written and no disk is touched.
@@ -64,7 +96,7 @@ with patch.object(guided.tui, 'run', return_value=None) as render:
 for key in ('arche_tools', 'disk_config', 'kernels', 'packages'):
     assert menu._item_group.find_by_key(key).action is not None
 config = ArchConfig.from_config({'arche_tools': [], 'kernels': ['linux']}, Arguments())
-assert set(package_plan(config)) == {'arche-workspace-defaults', 'arche-maintenance', 'arche-zsh'}
+assert set(package_plan(config)) == {'arche-workspace-defaults', 'arche-maintenance', 'arche-zsh', 'fastfetch', 'iwd'}
 assert ArchConfig.from_config(config.safe_config(), Arguments()).arche_tools == []
 config.arche_tools = ['bat', 'nvidia-open-dkms', 'ollama']
 assert {'bat', 'linux-headers', 'arche-inference-defaults'} <= set(package_plan(config))

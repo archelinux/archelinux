@@ -1,0 +1,26 @@
+# Maintainer: archelinux maintainers
+pkgname=playwright
+pkgver=1.65.1
+pkgrel=1
+pkgdesc='Browser testing CLI and JavaScript test runner'
+arch=('any')
+url='https://playwright.dev/'
+license=('Apache-2.0')
+depends=('bash' 'nodejs')
+source=("playwright-$pkgver.tgz::https://registry.npmjs.org/playwright/-/playwright-$pkgver.tgz"
+        "playwright-core-$pkgver.tgz::https://registry.npmjs.org/playwright-core/-/playwright-core-$pkgver.tgz"
+        "playwright-test-$pkgver.tgz::https://registry.npmjs.org/@playwright/test/-/test-$pkgver.tgz")
+noextract=("playwright-$pkgver.tgz" "playwright-core-$pkgver.tgz" "playwright-test-$pkgver.tgz")
+sha256sums=('e2ebec5abb40f511c7a4442e83042fd8a4e654c3367e120b76e94a61a8f91e01'
+            '6f5a60be62a4fddfbe7d10c448d8fbd54547da3358f2f8a04211440471ee863e'
+            '025a0b1ab36fd4e5f4ede6c9397020b9c3805d8f19c75a16989a02d70a88f37b')
+
+package() {
+  local modules="$pkgdir/usr/lib/playwright/node_modules"
+  install -d "$pkgdir/usr/bin" "$modules/playwright" "$modules/playwright-core" "$modules/@playwright/test"
+  # The published npm trees share one sibling resolution path.
+  bsdtar -xf "playwright-$pkgver.tgz" --strip-components=1 -C "$modules/playwright"
+  bsdtar -xf "playwright-core-$pkgver.tgz" --strip-components=1 -C "$modules/playwright-core"
+  bsdtar -xf "playwright-test-$pkgver.tgz" --strip-components=1 -C "$modules/@playwright/test"
+  ln -s ../lib/playwright/node_modules/playwright/cli.js "$pkgdir/usr/bin/playwright"
+}

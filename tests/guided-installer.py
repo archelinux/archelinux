@@ -56,7 +56,8 @@ for selection in (['arche-swayfx'], ['sway', 'arche-swayfx']):
     config.arche_tools = selection
     plan = package_plan(config)
     assert {'arche-swayfx', 'foot', 'grim', 'waybar'} <= set(plan) and 'sway' not in plan
-optional_tools = {'paru', 'yazi', 'btop', 'arche-waybar-github', 'firefox'}
+workflow_tools = {'worktrunk', 'herdr', 'lazyagents', 'difftastic', 'playwright', 'openspec', 'beads', 'ccusage'}
+optional_tools = {'paru', 'yazi', 'btop', 'arche-waybar-github', 'firefox'} | workflow_tools
 assert optional_tools.isdisjoint(package_plan(ArchConfig.from_config({}, Arguments())))
 for name in sorted(optional_tools):
     config.arche_tools = [name]
@@ -65,6 +66,9 @@ for name in sorted(optional_tools):
     assert 'grim' not in package_plan(restored)
     assert ('udisks2' in package_plan(restored)) == (name == 'yazi')
 assert 'udisks2' not in package_plan(ArchConfig.from_config({}, Arguments()))
+config = ArchConfig.from_config({'arche_tools': sorted(workflow_tools)}, Arguments())
+assert set(package_plan(config)) & optional_tools == workflow_tools
+assert {'sway', 'chromium', 'ollama', 'llama.cpp'}.isdisjoint(package_plan(config))
 additional_yazi = ArchConfig.from_config({'arche_tools': [], 'packages': ['yazi']}, Arguments())
 assert 'udisks2' in package_plan(additional_yazi)
 for selected in ([], ['spotify'], ['spotify-player'], ['spotify', 'spotify-player'],

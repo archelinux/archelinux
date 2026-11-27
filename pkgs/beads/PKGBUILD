@@ -1,0 +1,18 @@
+# Maintainer: archelinux maintainers
+pkgname=beads
+pkgver=1.3.4
+pkgrel=1
+pkgdesc='Dependency-aware task tracking with an embedded Dolt database'
+arch=('x86_64')
+url='https://github.com/gastownhall/beads'
+license=('MIT')
+depends=('glibc')
+conflicts=('beads-bin' 'beads-git')
+options=('!strip' '!debug')
+source=("beads-${pkgver}.tar.gz::https://github.com/gastownhall/beads/releases/download/v${pkgver}/beads_${pkgver}_linux_amd64.tar.gz")
+sha256sums=('175c26904bde3ff9168d2282ff6b56f17b17f60c22fa5acb3dacc9fb3465303a')
+
+package() {
+  install -Dm755 bd "$pkgdir/usr/bin/bd"
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

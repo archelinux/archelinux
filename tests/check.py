@@ -3,17 +3,17 @@ import hashlib
 import os
 from pathlib import Path
 import re
+import shlex
 import subprocess
 import tempfile
 
 root = Path(__file__).resolve().parents[1]
 for recipe in (root / 'pkgs').glob('*/PKGBUILD'):
     text = recipe.read_text()
-    sources = re.search(r'^source=\((.*)\)$', text, re.M)[1].split()
-    sums = re.search(r'^sha256sums=\((.*)\)$', text, re.M)[1].split()
+    sources = shlex.split(re.search(r'^source=\((.*?)\)$', text, re.M | re.S)[1])
+    sums = shlex.split(re.search(r'^sha256sums=\((.*?)\)$', text, re.M | re.S)[1])
     assert len(sources) == len(sums)
     for source, digest in zip(sources, sums):
-        source, digest = source.strip("'"), digest.strip("'")
         if "::https://" in source:
             staged = recipe.parent / source.split("::", 1)[0]
             if staged.exists():

@@ -1,0 +1,18 @@
+# Maintainer: archelinux maintainers
+pkgname=lazyagents
+pkgver=0.2.3
+pkgrel=1
+pkgdesc='Terminal UI for managing coding-agent sessions, skills and usage'
+arch=('x86_64')
+url='https://github.com/rogeriojunior31/lazyagents'
+license=('MIT')
+conflicts=('lazyagents-bin')
+options=('!strip' '!debug')
+source=("lazyagents-${pkgver}.tar.gz::https://github.com/rogeriojunior31/lazyagents/releases/download/v${pkgver}/lazyagents_${pkgver}_linux_amd64.tar.gz")
+sha256sums=('62966cc919f1eb5218d8fc220acebfbdf012c7d5b1597cf914e77c15e71f7373')
+
+package() {
+  install -Dm755 lazyagents "$pkgdir/usr/bin/lazyagents"
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+  install -Dm644 -t "$pkgdir/usr/share/licenses/$pkgname/" internal/tui/theme/LICENSE-SP-Night internal/tui/theme/LICENSES-themes.md
+}

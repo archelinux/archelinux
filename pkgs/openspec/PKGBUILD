@@ -1,0 +1,17 @@
+# Maintainer: archelinux maintainers
+pkgname=openspec
+pkgver=2.2.0
+pkgrel=1
+pkgdesc='Project specifications and acceptance criteria for coding agents'
+arch=('x86_64')
+url='https://github.com/Fission-AI/OpenSpec'
+license=('MIT')
+depends=('glibc')
+options=('!strip' '!debug')
+source=("openspec-${pkgver}.tar.gz::https://github.com/Fission-AI/OpenSpec/releases/download/v${pkgver}/openspec-linux-x64.tar.gz")
+sha256sums=('f91f0bc22ecd51279178bf91aaf6149ceba5b95dae9cc46f80f91fb14633e594')
+
+package() {
+  install -Dm755 openspec "$pkgdir/usr/bin/openspec"
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

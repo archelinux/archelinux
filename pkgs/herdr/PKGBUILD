@@ -1,0 +1,19 @@
+# Maintainer: archelinux maintainers
+pkgname=herdr
+pkgver=0.9.5
+pkgrel=1
+pkgdesc='Terminal multiplexer with coding-agent status and remote sessions'
+arch=('x86_64')
+url='https://github.com/herdrdev/herdr'
+license=('Apache-2.0')
+conflicts=('herdr-bin' 'herdr-git')
+options=('!strip' '!debug')
+source=("herdr-linux-x86_64::https://github.com/herdrdev/herdr/releases/download/v${pkgver}/herdr-linux-x86_64"
+        "herdr-LICENSE::https://raw.githubusercontent.com/herdrdev/herdr/v${pkgver}/LICENSE")
+sha256sums=('14d9e8bc8b4a9e0118d77c32266f76d461f09b40342eb23752960bd89f59929d'
+            'c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4')
+
+package() {
+  install -Dm755 herdr-linux-x86_64 "$pkgdir/usr/bin/herdr"
+  install -Dm644 herdr-LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

@@ -57,6 +57,25 @@ On an existing install, update the workspace package and install `yazi` and `udi
 
 For paired brackets and quotes, add `autopair` to `plugins=(...)` in `~/.zshrc`. Add `you-should-use` for reminders about existing aliases. Oh My Zsh also ships integrations such as `docker`, `kubectl` and `vi-mode`. Run `omz plugin list` for the installed catalog. The installed zoxide and direnv integrations also load automatically when you select those tools. Open a new terminal after editing your plugin list.
 
+## Agent workflows
+
+In **Arche software**, filter for `agent workflows` and select the tools you want. All are optional. The existing **tmux** choice also works for parallel sessions. On an installed system, update with `sudo pacman -Syu` and pass the selected package names to `sudo pacman -S`.
+
+| Package | What to do with it |
+| --- | --- |
+| `worktrunk` | Run `wt switch --create topic` from a Git repo to give a task its own checkout. |
+| `herdr` | Open `herdr` to manage parallel agent sessions and see which session needs input. |
+| `lazyagents` | Open `lazyagents` to browse local sessions and manage skills across agents. |
+| `difftastic` | Run `GIT_EXTERNAL_DIFF=difft git diff` to review local changes by syntax. |
+| `playwright` | Run `playwright --version` to check the installed CLI. In a project with Playwright tests, use the project's pinned `npx playwright test` and follow its browser setup. Browser binaries are downloaded separately. |
+| `openspec` | Run `openspec init` in a repo when you want to keep specs and acceptance criteria with the code. |
+| `beads` | Run `bd init` in a repo when you want project-local task tracking with dependencies. |
+| `ccusage` | Run `ccusage daily` to see usage recorded in local agent logs. |
+
+Keep one task per worktree, run the agent in Herdr or tmux, and review its diff and test result before merging. Project setup, account sign-in and model selection happen when you use the tools. The installer adds no agent plugins, browser downloads or background services for these selections.
+
+For a dedicated transcript search tool, see [CASS upstream](https://github.com/Dicklesworthstone/coding_agent_session_search) and its [license and redistribution terms](https://github.com/Dicklesworthstone/coding_agent_session_search/blob/v0.11.0/LICENSE).
+
 ## Recovery and maintenance
 
 On an installed system with the stable channel enabled, run `sudo pacman -Syu` to update Arch and archelinux packages together. If your 2.0.0 installation still uses the bundled repository, follow the one-time channel setup in [Rolling updates](rolling-updates.md).

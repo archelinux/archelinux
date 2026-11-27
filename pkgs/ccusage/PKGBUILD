@@ -1,0 +1,16 @@
+# Maintainer: archelinux maintainers
+pkgname=ccusage
+pkgver=20.1.2
+pkgrel=1
+pkgdesc='Token usage and estimated costs from local coding-agent logs'
+arch=('x86_64')
+url='https://github.com/ccusage/ccusage'
+license=('MIT')
+options=('!strip' '!debug')
+source=("ccusage-${pkgver}.tgz::https://registry.npmjs.org/@ccusage/ccusage-linux-x64/-/ccusage-linux-x64-${pkgver}.tgz")
+sha256sums=('5499db393a805f8b47e9738bc47eea9b020ef93be2930731443606feb1fca003')
+
+package() {
+  install -Dm755 package/bin/ccusage "$pkgdir/usr/bin/ccusage"
+  install -Dm644 package/LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}
